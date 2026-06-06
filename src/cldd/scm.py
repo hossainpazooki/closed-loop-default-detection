@@ -257,6 +257,9 @@ class InterventionResult:
     intervenable: bool             # False => engine refuses (non-intervenable feature)
     in_support: bool               # value within train [min, max]
     is_noop: bool                  # value ~= observed (per-unit baseline preserved)
+    structural: bool = False       # True => structural (information) switch, e.g.
+    #                                has_linked_bank_feed: manipulable but NOT one
+    #                                of the 16 policy-intervenable features.
     note: str = ""
 
 
@@ -301,6 +304,38 @@ class StructuralBorrowerGenerator:
     @classmethod
     def benchmark(cls, seed: int = config.RANDOM_SEED, **kwargs) -> "StructuralBorrowerGenerator":
         return cls(n_applicants=8000, seed=seed, **kwargs)
+
+    # ------------------------------------------------------------------ #
+    # DAG topology accessors (public; for downstream g-computation)
+    # ------------------------------------------------------------------ #
+
+    @classmethod
+    def dag_children(cls) -> dict[str, list[str]]:
+        """Public DAG topology: ``node -> list of its direct child nodes``.
+
+        Derived from the modeled structural edges (``_CHILDREN``). A downstream
+        g-computation / standardization estimator can fit each child mechanism
+        ``child ~ parents`` without touching private internals. Returns a fresh
+        copy with sorted, de-duplicated child lists.
+        """
+        return {node: sorted(set(children))
+                for node, children in cls._CHILDREN.items()}
+
+    @classmethod
+    def dag_parents(cls) -> dict[str, list[str]]:
+        """Public DAG topology: ``node -> list of its direct parent nodes``.
+
+        Exact inverse of :meth:`dag_children` over the same modeled feature nodes,
+        so every child lists the node as a parent (and vice-versa). Nodes with no
+        parents map to an empty list.
+        """
+        parents: dict[str, list[str]] = {node: [] for node in cls._CHILDREN}
+        for node, children in cls._CHILDREN.items():
+            for child in children:
+                parents.setdefault(child, [])
+                if node not in parents[child]:
+                    parents[child].append(node)
+        return {node: sorted(set(ps)) for node, ps in parents.items()}
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -373,13 +408,35 @@ class StructuralBorrowerGenerator:
         the whole block). Returns an :class:`InterventionResult`.
 
         ``value`` is broadcast to all units (scalar) or used per-unit (length-n
-        array). Non-intervenable features are refused (``intervenable=False``,
-        baseline returned unchanged).
+        array). Non-intervenable identity features (``sector``, ``vintage_years``,
+        ...) are refused (``intervenable=False``, baseline returned unchanged).
+        ``has_linked_bank_feed`` is a *structural* (information) switch: it is NOT
+        one of the 16 policy-intervenable features, but it IS manipulable — flipping
+        it reveals/hides the 6-node bank-feed block and recomputes the risk logit
+        through the existing structural equations (incl. the no-feed risk term).
+        Such results carry ``intervenable=False`` and ``structural=True``.
         """
         baseline_pd = self._logit_to_pd(self._risk_logit(state.values, state))
 
-        intervenable = feature in INTERVENABLE_FEATURES
         in_support = self._check_support(feature, value)
+
+        # ---- structural (information) switch: has_linked_bank_feed -------------
+        if feature == "has_linked_bank_feed":
+            new_has_feed = self._coerce_feed(value, state.n)
+            post_pd = self._logit_to_pd(
+                self._risk_logit(state.values, state, has_feed=new_has_feed)
+            )
+            is_noop = bool(np.array_equal(new_has_feed, state.has_feed))
+            return InterventionResult(
+                feature=feature, value=_scalar(value), true_pd=post_pd,
+                baseline_pd=baseline_pd, effect=post_pd - baseline_pd,
+                intervenable=False, in_support=in_support, is_noop=is_noop,
+                structural=True,
+                note="structural bank-feed switch: information node toggled "
+                     "(no-feed risk term re-applied; block revealed/hidden)",
+            )
+
+        intervenable = feature in INTERVENABLE_FEATURES
         if not intervenable:
             return InterventionResult(
                 feature=feature, value=_scalar(value), true_pd=baseline_pd.copy(),
@@ -397,6 +454,14 @@ class StructuralBorrowerGenerator:
             intervenable=True, in_support=in_support, is_noop=is_noop,
             note="" if in_support else "value outside train [min,max] (extrapolation)",
         )
+
+    @staticmethod
+    def _coerce_feed(value, n: int) -> np.ndarray:
+        """Coerce a feed-switch ``value`` (scalar bool/0-1 or length-n array) to a
+        boolean ndarray of length ``n`` (truthy => feed linked)."""
+        v = np.asarray(value)
+        flags = np.broadcast_to(v, (n,)).astype(float)
+        return flags > 0.5
 
     # ------------------------------------------------------------------ #
     # SCM construction: layered latents -> fitted marginals
@@ -628,17 +693,22 @@ class StructuralBorrowerGenerator:
         logit_no_int = logit_no_int + self.unobserved_strength * st.confounder_u
         st.risk_intercept = _solve_intercept(logit_no_int, self.target_base_rate)
 
-    def _risk_logit_raw(self, values: dict, st: SCMState) -> np.ndarray:
+    def _risk_logit_raw(self, values: dict, st: SCMState, has_feed=None) -> np.ndarray:
         logit = np.zeros(st.n)
         for term, coef in self._RISK_TERMS.items():
             mean, std = st.risk_scaler[term]
             logit = logit + coef * _zfix(values[term], mean, std)
-        # No-feed rows are slightly riskier (structural-missingness signal).
-        logit = logit + 0.20 * (~st.has_feed).astype(float)
+        # No-feed rows are slightly riskier (structural-missingness signal). The
+        # feed flag is a structural switch: do(has_linked_bank_feed=...) overrides
+        # it so linking/unlinking a feed flips this no-feed term (modest direct,
+        # information-only effect) — everything else is unchanged.
+        feed = st.has_feed if has_feed is None else has_feed
+        logit = logit + 0.20 * (~feed).astype(float)
         return logit
 
-    def _risk_logit(self, values: dict, st: SCMState) -> np.ndarray:
-        return self._risk_logit_raw(values, st) + self.unobserved_strength * st.confounder_u + st.risk_intercept
+    def _risk_logit(self, values: dict, st: SCMState, has_feed=None) -> np.ndarray:
+        return (self._risk_logit_raw(values, st, has_feed=has_feed)
+                + self.unobserved_strength * st.confounder_u + st.risk_intercept)
 
     def _logit_to_pd(self, logit: np.ndarray) -> np.ndarray:
         return np.clip(_sigmoid(logit), 0.0, 1.0)
@@ -717,8 +787,10 @@ class StructuralBorrowerGenerator:
 
     def _propagate(self, st: SCMState, feature: str, value) -> dict:
         """Return a NEW values dict for do(feature = value); descendants updated."""
-        # --- bank-feed structural switch handled separately ---
-        if feature == "has_linked_bank_feed":  # not intervenable per spec, but supported structurally
+        # The bank-feed structural switch is handled directly in do_intervention
+        # (it toggles has_feed and re-applies the no-feed risk term rather than
+        # altering any node value), so it never reaches descendant propagation.
+        if feature == "has_linked_bank_feed":  # pragma: no cover - guarded upstream
             return dict(st.values)
 
         L = dict(st.latent)
@@ -884,6 +956,25 @@ class StructuralBorrowerGenerator:
         dd = np.where(at_90, 90.0, body)
         days[is_def] = dd[is_def]
         return days
+
+
+def dag_children() -> dict[str, list[str]]:
+    """Module-level accessor for the SCM DAG topology (``node -> children``).
+
+    Thin wrapper over :meth:`StructuralBorrowerGenerator.dag_children` so a
+    downstream estimator can import the topology without instantiating or touching
+    private internals: ``from cldd import dag_children``.
+    """
+    return StructuralBorrowerGenerator.dag_children()
+
+
+def dag_parents() -> dict[str, list[str]]:
+    """Module-level accessor for the SCM DAG topology (``node -> parents``).
+
+    Thin wrapper over :meth:`StructuralBorrowerGenerator.dag_parents`. Consistent
+    with :func:`dag_children`: every child lists the node as a parent.
+    """
+    return StructuralBorrowerGenerator.dag_parents()
 
 
 def _scalar(value):

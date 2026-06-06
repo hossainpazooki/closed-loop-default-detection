@@ -162,7 +162,16 @@ by intervenable / non-intervenable / propagation slices, plus `.summary()`.
 
 ---
 
-## 7. Open gaps (the next work — user approved fixing BOTH)
+## 7. The two §3 gaps — RESOLVED on `feat/causal-gcomputation-and-gating`
+
+> **STATUS: both closed.** The bank-feed trap now propagates and a deployable
+> g-computation estimator replaces the oracle comparison. Measured (seed 42):
+> at moderate selection (severity 0.4, inside the frontier) g-computation beats
+> naive conditioning on the strong descendant-propagation slice
+> **0.0734 → 0.0598 (gap +0.0135)**; the advantage shrinks toward noise at full
+> severity (+0.0038) — the same selective-labels limit §5 discloses. All 42 tests
+> pass; fidelity gate still green. The original gap descriptions are kept below as
+> the record of what was changed.
 
 **Gap 1 — the "SCM-aware" estimator is the oracle.** In `counterfactual.py`,
 `_scm_aware_effects` calls the same `do_intervention` that *defines* the ground
