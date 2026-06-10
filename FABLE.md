@@ -74,9 +74,10 @@ holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
 
 ## Recommendations (ranked by value-per-effort)
 
-1. Multi-seed sweep of the counterfactual eval (in progress, results below).
+1. ~~Multi-seed sweep of the counterfactual eval~~ — **done**, results below.
 2. Disclose the bias trade-off in the §3 writeup.
-3. Point `SelectiveLabelsLoop` at the SCM for a unified world (nice-to-have).
+3. ~~Point `SelectiveLabelsLoop` at the SCM for a unified world~~ — **done**,
+   results below (`feat/loop-on-scm`).
 
 ## Seed sweep (multi-seed robustness)
 
@@ -132,3 +133,52 @@ Run 2026-06-10 across seeds {7, 13, 42, 101, 2026}, severities {0.4, 1.0},
 This is a *cleaner* result than the single-seed version: the regime where the
 method works is now sharply separated from the regime where nothing
 deployable works, with the same structural cause for both.
+
+## Unified world: the loop now runs on the SCM (`feat/loop-on-scm`)
+
+`SelectiveLabelsLoop` gained `generator="flat"|"scm"`; both the measure and
+retrain cohorts route through one factory (same generator class, same
+`TRAIN_SEED_OFFSET` no-leakage discipline). `run_clue.py --generator scm`
+writes `artifacts/clue_frontier_scm.{csv,png}` without touching the flat
+artifacts. Flat remains the default and is **byte-identical** to pre-change
+behavior (frozen-baseline test with exact float equality).
+
+### A blocker recon caught before implementation — worth a §5 footnote
+
+The SCM's selection blend reused the exogenous draw behind the **observed**
+`prior_underwriter_score` column (corr ≈ 0.92 with the selection score at
+severity 0; an in-sample propensity model reached AUC ≈ 1.0). On the flat
+generator, severity 0 means selection-at-random that *no* propensity model can
+explain — so pointing the loop at the SCM naively would have silently inverted
+the severity semantics and made the two frontiers incomparable. Fixed with a
+gated `independent_selection_noise` flag (default off): a dedicated frozen
+selection-noise node drawn *after* all existing draws, so the default RNG
+stream — and therefore the fidelity gate — is untouched (sha256-verified
+identical cohorts).
+
+### Unified frontier result
+
+| Severity | Naive declined ECE | IPW reweight | Passed |
+|---|---|---|---|
+| 0.0 | 0.0225 | 0.0251 | yes |
+| 0.2 | 0.0397 | 0.0370 | yes |
+| 0.4 | 0.1159 | 0.0874 | yes |
+| 0.6 | 0.2523 | 0.2498 | **no** |
+
+**The SCM frontier lands at severity 0.4 — the same operating frontier as the
+flat world, now measured in the same synthetic world as the counterfactual
+results.** Deliverable D can state one coherent claim: inside the frontier
+(severity ≤ 0.4) IPW holds declined-cohort calibration *and* g-computation
+reliably improves counterfactual MAE; beyond it, the unobserved confounder
+defeats both, for the same structural reason.
+
+Verification: 50/50 tests (8 new in `test_loop_scm.py`), fidelity gate 51/51
+checks, adversarial diff review clean (determinism sha256-checked across
+processes; IPW weights finite with NaN bank-feed columns).
+
+### Pre-existing issues surfaced by the review (not from this change)
+
+1. `scipy` is used by `scm.py` but undeclared in `pyproject.toml` dependencies.
+2. `requested_amount_to_observed_revenue` is derived from ungated bank-feed
+   revenue, leaking gated information for no-feed rows (`scm.py:666-673`).
+   Worth a look before the submission freeze.
