@@ -4,7 +4,10 @@ Ports ``upstream-label-correction/clue/loop.py`` to the SMB lending domain. Each
 round:
 
 1. **Generate** a synthetic cohort at the round's ``selection_severity`` (planted
-   default ground truth for every applicant; outcomes hidden for declines).
+   default ground truth for every applicant; outcomes hidden for declines). The
+   cohort generator is pluggable: ``generator="flat"`` (default) keeps the
+   original single-layer ``SyntheticBorrowerGenerator``; ``generator="scm"``
+   drives the loop with the fitted layered ``StructuralBorrowerGenerator``.
 2. **Measure** the naive detector — PD model trained on the approved rows only —
    against the planted truth, focusing on the **declined** subpopulation real
    data can never score.
@@ -34,10 +37,18 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import config, eval_default, model_pd
+from .scm import StructuralBorrowerGenerator
 from .synthetic import SyntheticBorrowerGenerator
 
 #: Valid improve levers.
 IMPROVE_MODES = ("reweight", "retrain", "both")
+
+#: Valid cohort generators. ``"flat"`` is the original single-layer
+#: ``SyntheticBorrowerGenerator`` (the default; existing artifacts and tests are
+#: unchanged). ``"scm"`` is the fitted layered ``StructuralBorrowerGenerator``
+#: with ``independent_selection_noise=True`` so severity keeps the same meaning
+#: in both worlds (sev 0 == selection-at-random no propensity model can explain).
+GENERATORS = ("flat", "scm")
 
 
 @dataclass
@@ -119,9 +130,13 @@ class SelectiveLabelsLoop:
         improve_mode: str = "both",
         train_seed_offset: int = config.TRAIN_SEED_OFFSET,
         policy_threshold: float = config.POLICY_PD_THRESHOLD,
+        generator: str = "flat",
     ) -> None:
         if improve_mode not in IMPROVE_MODES:
             raise ValueError(f"improve_mode must be one of {IMPROVE_MODES}; got {improve_mode!r}")
+        if generator not in GENERATORS:
+            raise ValueError(f"generator must be one of {GENERATORS}; got {generator!r}")
+        self.generator = generator
         self.target_declined_ece = target_declined_ece
         self.start_severity = start_severity
         self.severity_step = severity_step
@@ -138,28 +153,53 @@ class SelectiveLabelsLoop:
     # Cohort generation
     # ------------------------------------------------------------------ #
 
-    def _generate(self, severity: float, iteration: int) -> dict:
+    def _new_generator(self, severity: float, seed: int):
+        """Fresh single-shot generator for one cohort.
+
+        Both ``_generate`` and ``_generate_train`` MUST route through here so the
+        measure and retrain cohorts always come from the same generator class
+        (mixing them raises an sklearn n_features mismatch: 12 flat vs 28 SCM
+        columns). A fresh instance per cohort is required for determinism — both
+        generators consume their own ``Generator(PCG64(seed))`` on
+        ``generate_cohort``, so reusing an instance would silently shift streams.
+        """
+        if self.generator == "scm":
+            # independent_selection_noise=True: the SCM's default selection blend
+            # reuses the exogenous draw behind the OBSERVED prior_underwriter_score
+            # column, which would make low-severity selection explainable by the
+            # propensity model and invert the IPW lever's narrative. The dedicated
+            # frozen draw keeps severity semantics aligned with the flat world.
+            # The SCM matrix still exposes the prior-policy columns
+            # (prior_underwriter_score / prior_decision / prior_approved_amount) —
+            # intentional observed-policy features; with the independent draw they
+            # no longer encode this loop's selection mechanism.
+            return StructuralBorrowerGenerator(
+                n_applicants=self.n_applicants,
+                selection_severity=severity,
+                approval_rate=self.approval_rate,
+                seed=seed,
+                independent_selection_noise=True,
+            )
         return SyntheticBorrowerGenerator(
             n_applicants=self.n_applicants,
             selection_severity=severity,
             approval_rate=self.approval_rate,
-            seed=self.seed + iteration,  # a fresh cohort each round, still deterministic
-        ).generate_cohort()
+            seed=seed,
+        )
+
+    def _generate(self, severity: float, iteration: int) -> dict:
+        # a fresh cohort each round, still deterministic
+        return self._new_generator(severity, self.seed + iteration).generate_cohort()
 
     def _generate_train(self, severity: float, iteration: int) -> tuple[dict, int]:
         """DISJOINT train cohort for the retrain lever (no-leakage rule).
 
-        Same severity and geometry as the measure cohort but a seed offset by
-        ``train_seed_offset`` so neither its applicants nor its RNG stream overlap
-        the measure cohort (seed ``self.seed + iteration``).
+        Same severity, geometry, and generator class as the measure cohort but a
+        seed offset by ``train_seed_offset`` so neither its applicants nor its RNG
+        stream overlap the measure cohort (seed ``self.seed + iteration``).
         """
         train_seed = self.seed + self.train_seed_offset + iteration
-        cohort = SyntheticBorrowerGenerator(
-            n_applicants=self.n_applicants,
-            selection_severity=severity,
-            approval_rate=self.approval_rate,
-            seed=train_seed,
-        ).generate_cohort()
+        cohort = self._new_generator(severity, train_seed).generate_cohort()
         return cohort, train_seed
 
     # ------------------------------------------------------------------ #
