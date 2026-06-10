@@ -1,15 +1,18 @@
 """Driver: run the closed loop and emit evidence for the Deliverable D writeup.
 
-    python scripts/run_clue.py
+    python scripts/run_clue.py [--generator {flat,scm}]
 
 Runs ``SelectiveLabelsLoop(improve_mode="both")``, writes
-``artifacts/clue_frontier.csv`` and ``artifacts/clue_frontier.png``, and prints a
-short summary suitable for pasting into the writeup's §3 (causal), §4
-(calibration), and §5 (limitations).
+``artifacts/clue_frontier.csv`` and ``artifacts/clue_frontier.png`` (or
+``clue_frontier_scm.csv`` / ``clue_frontier_scm.png`` with ``--generator scm``,
+so the flat artifacts are never overwritten), and prints a short summary suitable
+for pasting into the writeup's §3 (causal), §4 (calibration), and §5
+(limitations).
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -68,19 +71,33 @@ def _plot(df: pd.DataFrame, target_ece: float, out_path: Path) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the selective-labels closed loop.")
+    parser.add_argument(
+        "--generator",
+        choices=("flat", "scm"),
+        default="flat",
+        help="cohort generator: 'flat' = single-layer synthetic (default), "
+        "'scm' = fitted layered SCM (writes *_scm artifacts, never the flat ones)",
+    )
+    args = parser.parse_args()
+
     config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    loop = SelectiveLabelsLoop(improve_mode="both")
+    loop = SelectiveLabelsLoop(improve_mode="both", generator=args.generator)
     result = loop.run()
 
     df = pd.DataFrame(_rows(result))
-    csv_path = config.ARTIFACTS_DIR / "clue_frontier.csv"
-    png_path = config.ARTIFACTS_DIR / "clue_frontier.png"
+    suffix = "_scm" if args.generator == "scm" else ""
+    csv_path = config.ARTIFACTS_DIR / f"clue_frontier{suffix}.csv"
+    png_path = config.ARTIFACTS_DIR / f"clue_frontier{suffix}.png"
     df.to_csv(csv_path, index=False)
     _plot(df, result.target_declined_ece, png_path)
 
     print(df.to_string(index=False))
     print()
+    print(f"Generator: {args.generator}"
+          + (" (structural SCM — artifacts written to the *_scm files, flat artifacts untouched)"
+             if args.generator == "scm" else " (single-layer synthetic)"))
     frontier = result.frontier_severity
     best = result.best_round
     print(f"Operating frontier (highest passing severity): {frontier}")

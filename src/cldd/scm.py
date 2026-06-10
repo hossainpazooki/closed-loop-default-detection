@@ -279,7 +279,16 @@ class StructuralBorrowerGenerator:
         bank_feed_rate: float = 0.643157,
         unobserved_strength: float = 0.55,
         seed: int = config.RANDOM_SEED,
+        independent_selection_noise: bool = False,
     ) -> None:
+        # independent_selection_noise: by default the (1 - severity) blend noise in
+        # ``_apply_selection`` reuses the exogenous draw behind the OBSERVED
+        # ``prior_underwriter_score`` column, so low-severity selection is largely
+        # explainable from the feature matrix (corr ~0.92). The loop-on-SCM path
+        # sets this True to use a dedicated frozen draw instead, restoring the flat
+        # generator's semantics (severity 0 == selection-at-random that NO
+        # propensity model can explain). Drawn after every other node so the
+        # feature stream — and the fidelity-gated default path — is byte-identical.
         if not 0.0 <= selection_severity <= 1.0:
             raise ValueError(f"selection_severity must be in [0, 1]; got {selection_severity}")
         if not 0.0 < approval_rate < 1.0:
@@ -291,6 +300,7 @@ class StructuralBorrowerGenerator:
         self.bank_feed_rate = bank_feed_rate
         self.unobserved_strength = unobserved_strength
         self.seed = seed
+        self.independent_selection_noise = independent_selection_noise
         self.rng = np.random.Generator(np.random.PCG64(seed))
 
     # ------------------------------------------------------------------ #
@@ -495,6 +505,10 @@ class StructuralBorrowerGenerator:
         st.noise["__survival_mass__"] = rng.random(n)
         st.noise["__prior_default__"] = rng.random(n)
         st.confounder_u = rng.standard_normal(n)
+        if self.independent_selection_noise:
+            # Dedicated unobservable draw for the selection blend, drawn LAST and
+            # only when requested so the default path's RNG stream is untouched.
+            st.noise["__selection__"] = rng.standard_normal(n)
 
         self._populate_values(st)
         self._fit_risk_scaler(st)
@@ -925,14 +939,23 @@ class StructuralBorrowerGenerator:
         """Fund the lowest-risk ``approval_rate`` fraction.
 
         ``prior_score`` blends standardized true risk (incl. the unobserved
-        confounder) with independent noise per ``selection_severity`` — so the
-        loop's frontier escalation still makes sense (sev 0 == random selection,
-        sev 1 == approval tracks full latent risk including the unobservable).
+        confounder) with noise per ``selection_severity`` — so the loop's frontier
+        escalation still makes sense (sev 0 == random selection, sev 1 == approval
+        tracks full latent risk including the unobservable).
+
+        The default blend noise reuses the exogenous draw behind the observed
+        ``prior_underwriter_score`` feature (kept for backward compatibility: the
+        fidelity gate is baselined on this stream). With
+        ``independent_selection_noise=True`` a dedicated frozen draw is used so
+        sev-0 selection is genuinely unexplainable from observed columns.
         """
         sev = self.selection_severity
         logit = self._risk_logit(st.values, st)  # includes confounder
         z = _zfix(logit, float(np.mean(logit)), float(np.std(logit)))
-        noise = st.noise["prior_underwriter_score"]  # frozen independent noise
+        if self.independent_selection_noise:
+            noise = st.noise["__selection__"]  # frozen, never exposed as a feature
+        else:
+            noise = st.noise["prior_underwriter_score"]  # also generates the observed column
         prior_score = sev * z + (1.0 - sev) * noise
         cutoff = np.quantile(prior_score, self.approval_rate)
         approved = prior_score <= cutoff
