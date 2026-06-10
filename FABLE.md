@@ -178,7 +178,12 @@ processes; IPW weights finite with NaN bank-feed columns).
 
 ### Pre-existing issues surfaced by the review (not from this change)
 
-1. `scipy` is used by `scm.py` but undeclared in `pyproject.toml` dependencies.
+1. ~~`scipy` is used by `scm.py` but undeclared in `pyproject.toml`~~ — fixed
+   (declared `scipy>=1.11`, 2026-06-10).
 2. `requested_amount_to_observed_revenue` is derived from ungated bank-feed
    revenue, leaking gated information for no-feed rows (`scm.py:666-673`).
-   Worth a look before the submission freeze.
+   **Decision (2026-06-10): documented, deliberately NOT fixed before the
+   submission freeze.** Fixing alters the SCM, which invalidates every verified
+   number above (5-seed sweep, unified frontier, fidelity gate) and forces a
+   full re-verification cycle — disproportionate for a realism nuance in the
+   validation world. First task if this harness outlives the hackathon.
