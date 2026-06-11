@@ -84,6 +84,15 @@ holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
 Run 2026-06-10 across seeds {7, 13, 42, 101, 2026}, severities {0.4, 1.0},
 900 queries each. Seed 42 reproduced the table above exactly (harness check).
 
+**Committed evidence (2026-06-11):** the sweep is reproducible via
+`scripts/run_seed_sweep.py` (one subprocess per eval), which writes
+`artifacts/seed_sweep.csv` — both committed. A from-scratch rerun reproduced
+all 10 rows, including the three seeds (7, 101, 2026) not previously re-run
+outside the original workflow. Raw-float note: the severity-1.0 mean gap is
++0.0020 ± 0.0022 from the CSV's full-precision values; the +0.0021 below came
+from 4-dp-rounded per-seed rows (0.00205 sits on the rounding boundary).
+Same conclusion — statistically zero — either way.
+
 ### Severity 0.4 — the advantage is robust, and seed 42 understated it
 
 | Seed | Strong-prop gap (naive − gcomp) | Overall gap |

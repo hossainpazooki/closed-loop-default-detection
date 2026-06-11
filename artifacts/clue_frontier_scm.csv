@@ -1,0 +1,5 @@
+iteration,selection_severity,base_rate,approval_rate,naive_declined_ece,naive_declined_mean_pd,naive_declined_base_rate,naive_declined_auc,control_metric,passed,reweight_declined_ece,reweight_declined_mean_pd,retrain_declined_ece,retrain_train_seed
+0,0.0,0.1703,0.6,0.0225,0.1864,0.1812,0.8744,0.0251,True,0.0251,0.193,0.0186,1042
+1,0.2,0.1762,0.6,0.0397,0.2075,0.2394,0.8649,0.037,True,0.037,0.214,0.0479,1043
+2,0.4,0.1745,0.6,0.1159,0.1947,0.3044,0.8041,0.0874,True,0.0874,0.2297,0.1191,1044
+3,0.6,0.1655,0.6,0.2523,0.1049,0.3569,0.6876,0.2498,False,0.2498,0.107,0.2164,1045

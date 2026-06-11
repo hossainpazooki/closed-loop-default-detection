@@ -1,5 +1,10 @@
-# Artifacts produced by the loop driver (frontier table + plots)
-artifacts/
+# Artifacts produced by the loop driver (plots and scratch stay ignored, but
+# the CSVs cited as evidence by FABLE.md and the submission docs are tracked —
+# a clone must be able to recompute the quoted numbers from committed sources)
+artifacts/*
+!artifacts/clue_frontier.csv
+!artifacts/clue_frontier_scm.csv
+!artifacts/seed_sweep.csv
 
 # Python
 __pycache__/
