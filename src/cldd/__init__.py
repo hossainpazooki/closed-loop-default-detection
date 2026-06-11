@@ -12,7 +12,9 @@ from .counterfactual import (
     generate_queries,
     run_counterfactual_eval,
 )
+from .diagnostics import PositivityDiagnostics, positivity_diagnostics
 from .eval_default import PdDetectionResult, fit_observed_model, score_pd_detection
+from .feedback import FeedbackLoop, FeedbackResult, GenerationResult
 from .loop import LeverMetrics, LoopResult, RoundResult, SelectiveLabelsLoop
 from .scm import (
     BANK_FEED_COLUMNS,
@@ -40,6 +42,11 @@ __all__ = [
     "LoopResult",
     "RoundResult",
     "LeverMetrics",
+    "FeedbackLoop",
+    "FeedbackResult",
+    "GenerationResult",
+    "PositivityDiagnostics",
+    "positivity_diagnostics",
     "PdDetectionResult",
     "fit_observed_model",
     "score_pd_detection",

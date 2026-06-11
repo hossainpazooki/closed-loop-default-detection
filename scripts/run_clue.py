@@ -49,6 +49,16 @@ def _rows(result) -> list[dict]:
         if r.retrain is not None:
             row["retrain_declined_ece"] = round(r.retrain.declined_ece, 4)
             row["retrain_train_seed"] = r.retrain_train_seed
+        if r.explore is not None:
+            row["explore_declined_ece"] = round(r.explore.declined_ece, 4)
+            row["n_explored"] = r.n_explored
+            row["explored_defaults"] = r.explored_defaults
+        if r.diagnostics is not None:
+            # Observable-only positivity diagnostics (no declined labels needed).
+            row["diag_propensity_auc"] = round(r.diagnostics.propensity_auc, 4)
+            row["diag_ess_ratio"] = round(r.diagnostics.ess_ratio, 4)
+            row["diag_below_floor"] = round(r.diagnostics.unfunded_below_floor, 4)
+            row["diag_flagged"] = r.diagnostics.flagged
         rows.append(row)
     return rows
 
@@ -60,6 +70,8 @@ def _plot(df: pd.DataFrame, target_ece: float, out_path: Path) -> None:
         ax.plot(df["selection_severity"], df["reweight_declined_ece"], marker="s", label="IPW reweight")
     if "retrain_declined_ece" in df:
         ax.plot(df["selection_severity"], df["retrain_declined_ece"], marker="^", label="retrain (disjoint)")
+    if "explore_declined_ece" in df:
+        ax.plot(df["selection_severity"], df["explore_declined_ece"], marker="D", label="exploration (bought labels)")
     ax.axhline(target_ece, color="grey", linestyle="--", label=f"target ECE = {target_ece}")
     ax.set_xlabel("selection severity  (0 = random approval, 1 = approval tracks true risk)")
     ax.set_ylabel("declined-subpopulation calibration error (ECE)")
@@ -79,11 +91,20 @@ def main() -> None:
         help="cohort generator: 'flat' = single-layer synthetic (default), "
         "'scm' = fitted layered SCM (writes *_scm artifacts, never the flat ones)",
     )
+    parser.add_argument(
+        "--exploration-rate",
+        type=float,
+        default=0.0,
+        help="randomly approve this fraction of declines to buy labels (adds the "
+        "exploration lever; 0 = off, the committed-artifact default)",
+    )
     args = parser.parse_args()
 
     config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    loop = SelectiveLabelsLoop(improve_mode="both", generator=args.generator)
+    loop = SelectiveLabelsLoop(
+        improve_mode="both", generator=args.generator, exploration_rate=args.exploration_rate
+    )
     result = loop.run()
 
     df = pd.DataFrame(_rows(result))

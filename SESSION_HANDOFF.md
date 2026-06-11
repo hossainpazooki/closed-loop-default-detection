@@ -41,20 +41,28 @@ dependency.
 
 ```
 src/cldd/
-  config.py          seeds, loan economics, severity grid, fidelity tolerances
+  config.py          seeds, loan economics, severity grid, fidelity tolerances,
+                     positivity-diagnostic thresholds, exploration stream tags
   synthetic.py       SyntheticBorrowerGenerator — the ORIGINAL flat selective-labels
                      generator (single-layer logistic). Drives the loop below.
   model_pd.py        calibrated PD model (HistGBT + isotonic) + IPW weights
   eval_default.py    measure stage: train-on-approved, score-on-full-truth (all/approved/declined)
   loop.py            SelectiveLabelsLoop — generate→measure→improve→frontier
+                     (+ exploration lever, + observable diagnostics per round)
+  feedback.py        FeedbackLoop — model-in-the-loop selective labels across
+                     deployment generations (see §10)
+  diagnostics.py     observable positivity diagnostics (no declined labels needed)
   scm.py             StructuralBorrowerGenerator — the FAITHFUL structural model
                      (fitted marginals + layered DAG + survival + do_intervention)
   fidelity.py        VERIFY-FIDELITY gate: synthetic vs real-data marginals
   counterfactual.py  Deliverable-C-style query set + estimator grading
 scripts/
-  run_clue.py        run the selective-labels loop -> artifacts/clue_frontier.{csv,png}
+  run_clue.py        run the selective-labels loop -> artifacts/clue_frontier{,_scm}.{csv,png}
+  run_exploration_sweep.py  frontier vs exploration budget -> artifacts/exploration_frontier.csv
+  run_feedback.py    feedback generations -> artifacts/feedback_generations.csv
+  run_seed_sweep.py  multi-seed counterfactual certification -> artifacts/seed_sweep.csv
   check_fidelity.py  run the fidelity gate, exit nonzero on drift
-tests/               test_synthetic, test_loop, test_fidelity, test_counterfactual (28 total)
+tests/               run pytest for the authoritative count (66 at last green run)
 ```
 
 Two generators coexist on purpose. `synthetic.py` is the original, lightweight one
@@ -231,7 +239,46 @@ the no-leakage discipline (train/measure on disjoint seeds).
 
 ---
 
-## 9. Invariants to preserve
+## 9. Post-hackathon expansion: closing the loop (`feat/close-the-loop`)
+
+Built from the lessons recorded in FABLE.md after the submission freeze. Three
+components, all **measured in the two synthetic worlds only**:
+
+1. **Exploration lever** (`SelectiveLabelsLoop(exploration_rate=eps)`): randomly
+   approve an eps-fraction of declines; train on all funded rows with **exact**
+   labeled-propensity weights (1 for approvals, 1/eps for explored) — known by
+   construction, immune to the unobserved confounder that defeats fitted IPW.
+   Measured (SCM, seeds {7, 42, 2026}): at severity 0.6 — past the certified
+   frontier — eps=0.10 holds declined-ECE at 0.076/0.092/0.155 vs IPW's
+   0.249/0.244/0.253 (target 0.10: cleared on 2/3 seeds). eps in {0.02, 0.05}
+   is too noisy to certify at n=4000 (tens of bought labels carry the whole
+   declined population). Evidence: `artifacts/exploration_frontier.csv`.
+2. **`FeedbackLoop`** (`feedback.py`): from generation 1 the deployed model's
+   own top-k approvals decide the next training labels — the loop the static
+   harness never closed. The deceptive dynamic is measured: the funded book
+   *improves* while blind-spot under-prediction grows; eps=0.05 cuts the mean
+   under-prediction over model generations from +0.15/+0.13 (sev 0.4/1.0) to
+   +0.06/+0.05. Per-generation declined-ECE is non-monotone (sampling noise);
+   tests assert only the bias reduction. Evidence:
+   `artifacts/feedback_generations.csv`.
+3. **Observable positivity diagnostics** (`diagnostics.py`, `diag_*` columns on
+   every loop round): propensity AUC, IPW ESS ratio, share of declines below
+   the clip floor — computable without a single declined label. Thresholds
+   (config `DIAG_*`) calibrated at n=4000 on both worlds' grids, seeds
+   {7, 42, 2026}: each component separates every pass-severity (<= 0.4) cell
+   from every fail-severity (>= 0.6) cell. The flag detects the
+   positivity-breakdown **regime**, not per-cohort ECE; the in-sample AUC
+   inflates at smaller n (documented in test_diagnostics). In the feedback
+   world the flag fires on 15/15 model generations.
+
+Determinism notes: exploration draws use dedicated streams
+(`config.EXPLORE_STREAM_LOOP` / `EXPLORE_STREAM_FEEDBACK`, seeded
+`[seed, iteration, tag]`) so generator PCG64 streams are untouched; the flat
+frozen-baseline test still passes with exact float equality. The model policy
+in `FeedbackLoop` is rank-based top-k (NOT a quantile cutoff — isotonic ties
+overfund; this was caught and fixed during the build).
+
+## 10. Invariants to preserve
 
 - **Determinism:** byte-identical per seed; all randomness through one seeded
   `numpy.random.Generator`.
