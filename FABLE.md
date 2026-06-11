@@ -2,8 +2,17 @@
 
 > Independent review of `closed-loop-default-detection` after PR #1
 > (`feat/causal-gcomputation-and-gating`, merged 2026-06-06).
-> All numbers below were **re-verified by re-running the code on 2026-06-10**,
-> not copied from commit messages. 42/42 tests pass; fidelity gate green.
+> All numbers below were **re-verified by re-running the code**, not copied from
+> commit messages. 50/50 tests pass; fidelity gate 51/51 green.
+>
+> **UPDATE 2026-06-11 — bank-feed leak fixed (was deferred).** The
+> `requested_amount_to_observed_revenue` leak (§"pre-existing issues" #2) was
+> gated (design a) and the certification re-run on the corrected SCM. Headline
+> shifts: severity-0.4 strong-prop gap **+0.0191 ± 0.0046 → +0.0133 ± 0.0068**
+> (still 5/5 positive, ~19% → ~13% relative); severity-1.0 gap **+0.0021 → +0.0017
+> ± 0.0013**, now uniformly positive (old seed-13 sign flip gone) but collapsed ~an
+> order of magnitude. Operating frontier still 0.4. All tables below are the
+> corrected post-fix numbers.
 
 ## Verdict
 
@@ -17,12 +26,12 @@ better §3/§5 narrative than "g-computation wins."
 
 | Metric | Severity 0.4 | Severity 1.0 |
 |---|---|---|
-| Naive MAE (overall) | 0.0873 | 0.0933 |
-| G-comp MAE (overall) | 0.0832 | 0.0921 |
-| Naive bias | -0.0201 | -0.0248 |
-| G-comp bias | -0.0252 | -0.0271 |
-| Strong-propagation: naive → gcomp | 0.0734 → 0.0598 (gap +0.0135) | 0.0800 → 0.0762 (gap +0.0038) |
-| Overall gap (naive − gcomp) | +0.0041 | +0.0012 |
+| Naive MAE (overall) | 0.0872 | 0.0960 |
+| G-comp MAE (overall) | 0.0842 | 0.0957 |
+| Naive bias | -0.0219 | -0.0273 |
+| G-comp bias | -0.0233 | -0.0308 |
+| Strong-propagation: naive → gcomp | 0.0714 → 0.0635 (gap +0.0079) | 0.0802 → 0.0785 (gap +0.0017) |
+| Overall gap (naive − gcomp) | +0.0029 | +0.0003 |
 
 Selective-labels frontier (flat generator, `artifacts/clue_frontier.csv`): IPW
 holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
@@ -45,7 +54,7 @@ holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
 
 3. **Both limits share one cause — the best part of the result.** The IPW
    frontier breaks between severity 0.4 and 0.6, and the g-computation
-   advantage collapses at full severity (+0.0135 → +0.0038), for the same
+   advantage collapses at full severity (+0.0079 → +0.0017, seed 42), for the same
    structural reason: estimators fit on approved rows whose conditionals are
    distorted by selection on an *unobserved* confounder. Backdoor adjustment
    cannot fix unobserved confounding; IPW cannot fix broken positivity. One
@@ -54,18 +63,18 @@ holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
 ## Sharpened critiques
 
 1. **The win is smaller than the framing.** Overall MAE gap at severity 0.4 is
-   +0.0041 (~5% relative). Even on the strong-propagation slice, gcomp's MAE
-   of 0.0598 against a true effect size of ~0.116 means the deployable
-   estimator still misses roughly **half the effect**. Naive misses ~75%. §3
+   +0.0029 (~3% relative, seed 42). Even on the strong-propagation slice, gcomp's
+   MAE of 0.0635 against a true effect size of ~0.116 means the deployable
+   estimator still misses roughly **half the effect**; naive misses ~60%. §3
    should say "directionally better, honestly far from recovery."
 
-2. **G-comp's bias is slightly *worse* than naive** (-0.0252 vs -0.0201 at
-   severity 0.4; -0.0271 vs -0.0248 at 1.0). MAE improves while systematic
+2. **G-comp's bias is slightly *worse* than naive** (-0.0233 vs -0.0219 at
+   severity 0.4; -0.0308 vs -0.0273 at 1.0). MAE improves while systematic
    underestimation worsens slightly. Disclose preemptively.
 
 3. **Single-seed results.** The strong-propagation gap is computed on 125
-   queries from seed 42 alone; the +0.0038 full-severity gap is small enough
-   to plausibly flip sign on another seed. → addressed by the seed sweep below.
+   queries from seed 42 alone; the +0.0017 full-severity gap is small enough
+   that its sign and robustness needed the multi-seed check below.
 
 4. **Two synthetic worlds.** The frontier runs on the flat `synthetic.py`
    generator while the counterfactual eval runs on the SCM. The cohort
@@ -81,61 +90,65 @@ holds declined-cohort ECE through severity **0.4** (0.086), fails at 0.6
 
 ## Seed sweep (multi-seed robustness)
 
-Run 2026-06-10 across seeds {7, 13, 42, 101, 2026}, severities {0.4, 1.0},
-900 queries each. Seed 42 reproduced the table above exactly (harness check).
+Run across seeds {7, 13, 42, 101, 2026}, severities {0.4, 1.0}, 900 queries
+each. Seed 42 reproduces the verified table above exactly (harness check).
 
-**Committed evidence (2026-06-11):** the sweep is reproducible via
+**Committed evidence:** the sweep is reproducible via
 `scripts/run_seed_sweep.py` (one subprocess per eval), which writes
-`artifacts/seed_sweep.csv` — both committed. A from-scratch rerun reproduced
-all 10 rows, including the three seeds (7, 101, 2026) not previously re-run
-outside the original workflow. Raw-float note: the severity-1.0 mean gap is
-+0.0020 ± 0.0022 from the CSV's full-precision values; the +0.0021 below came
-from 4-dp-rounded per-seed rows (0.00205 sits on the rounding boundary).
-Same conclusion — statistically zero — either way.
+`artifacts/seed_sweep.csv` — both committed. The tables below are the corrected
+post-leak-fix run (2026-06-11) on the gated SCM; the original pre-fix run is in
+git history. The severity-1.0 mean gap (+0.0017 ± 0.0013) is uniformly positive
+across seeds but collapsed ~an order of magnitude vs severity 0.4 — negligible,
+no deployable advantage, as the bullets below state.
 
-### Severity 0.4 — the advantage is robust, and seed 42 understated it
+### Severity 0.4 — the advantage is robust across seeds
 
 | Seed | Strong-prop gap (naive − gcomp) | Overall gap |
 |---|---|---|
-| 7 | +0.0256 | +0.0042 |
-| 13 | +0.0217 | +0.0060 |
-| 42 | +0.0135 | +0.0041 |
-| 101 | +0.0171 | +0.0009 |
-| 2026 | +0.0177 | +0.0001 |
-| **mean ± sd** | **+0.0191 ± 0.0046** | **+0.0031 ± 0.0025** |
+| 7 | +0.0133 | +0.0032 |
+| 13 | +0.0169 | +0.0039 |
+| 42 | +0.0079 | +0.0029 |
+| 101 | +0.0225 | +0.0004 |
+| 2026 | +0.0057 | -0.0009 |
+| **mean ± sd** | **+0.0133 ± 0.0068** | **+0.0019 ± 0.0021** |
 
-- **No sign flips** on either metric: 5/5 seeds positive.
-- Seed 42 (the one previously published) was the **most pessimistic** seed —
-  the mean strong-propagation gap is ~40% larger than the single-seed number.
-- Strong-propagation MAE across seeds: naive 0.0988 ± 0.0154 vs gcomp
-  0.0797 ± 0.0135.
+- **No sign flips on the strong-propagation slice**: 5/5 seeds positive. The
+  overall (all-query) gap is thinner and goes marginally negative on one seed
+  (2026, −0.0009) — the win lives where interventions propagate, not overall.
+- Seed 42 (the one originally published) sits in the lower half of the five
+  (2nd-smallest strong gap, +0.0079) — representative of the spread, not an
+  outlier in either direction.
+- Strong-propagation MAE across seeds: naive 0.0989 ± 0.0182 vs gcomp
+  0.0856 ± 0.0138 (~13% relative reduction).
 - The **bias trade-off is consistent**: gcomp's bias is more negative than
   naive's on **5/5 seeds** at this severity. It is a systematic property of
   the method here, not seed noise — disclose it as such.
 
-### Severity 1.0 — the advantage is statistically zero; state it that way
+### Severity 1.0 — the advantage collapses to negligible; state it that way
 
 | Seed | Strong-prop gap | Overall gap |
 |---|---|---|
-| 7 | +0.0011 | +0.0001 |
-| 13 | **−0.0007** | **−0.0001** |
-| 42 | +0.0038 | +0.0012 |
-| 101 | +0.0014 | +0.0002 |
-| 2026 | +0.0047 | +0.0007 |
-| **mean ± sd** | **+0.0021 ± 0.0022** | **+0.0004 ± 0.0005** |
+| 7 | +0.0005 | −0.0003 |
+| 13 | +0.0004 | +0.0001 |
+| 42 | +0.0017 | +0.0003 |
+| 101 | +0.0034 | +0.0005 |
+| 2026 | +0.0023 | +0.0001 |
+| **mean ± sd** | **+0.0017 ± 0.0013** | **+0.0001 ± 0.0003** |
 
-- The gap **flips sign on seed 13** and the mean is within one sd of zero.
-  The anticipated failure mode is real: at full severity there is **no
-  reliable g-computation advantage**, and §3/§5 must not claim a small one.
+- On the gated SCM the gap is **uniformly positive (5/5)** — the pre-fix seed-13
+  sign flip is gone — but it has **collapsed by nearly an order of magnitude**
+  vs severity 0.4 (+0.0017 vs +0.0133). It is marginally above zero, not
+  statistically zero, but the effect size is negligible: at full severity there
+  is **no deployable g-computation advantage**, and §3/§5 must not claim one.
 
 ### What to write in Deliverable D
 
 > At moderate selection (severity 0.4, inside the IPW frontier),
 > g-computation reliably beats naive conditioning where interventions
-> propagate: strong-propagation MAE gap **+0.019 ± 0.005 across 5 seeds, no
-> sign flips**. At full severity the advantage is statistically
-> indistinguishable from zero (+0.002 ± 0.002, sign flips on 1/5 seeds) —
-> the same unobserved-confounder limit that breaks the IPW frontier between
+> propagate: strong-propagation MAE gap **+0.013 ± 0.007 across 5 seeds, no
+> sign flips**. At full severity the advantage collapses by nearly an order of
+> magnitude (+0.0017 ± 0.0013) — negligible and of no deployable value, the
+> same unobserved-confounder limit that breaks the IPW frontier between
 > severity 0.4 and 0.6. G-computation also trades a small consistent
 > increase in negative bias (5/5 seeds) for its MAE reduction.
 
@@ -169,10 +182,10 @@ identical cohorts).
 
 | Severity | Naive declined ECE | IPW reweight | Passed |
 |---|---|---|---|
-| 0.0 | 0.0225 | 0.0251 | yes |
-| 0.2 | 0.0397 | 0.0370 | yes |
-| 0.4 | 0.1159 | 0.0874 | yes |
-| 0.6 | 0.2523 | 0.2498 | **no** |
+| 0.0 | 0.0361 | 0.0359 | yes |
+| 0.2 | 0.0398 | 0.0378 | yes |
+| 0.4 | 0.1123 | 0.0969 | yes |
+| 0.6 | 0.2728 | 0.2439 | **no** |
 
 **The SCM frontier lands at severity 0.4 — the same operating frontier as the
 flat world, now measured in the same synthetic world as the counterfactual
@@ -189,10 +202,15 @@ processes; IPW weights finite with NaN bank-feed columns).
 
 1. ~~`scipy` is used by `scm.py` but undeclared in `pyproject.toml`~~ — fixed
    (declared `scipy>=1.11`, 2026-06-10).
-2. `requested_amount_to_observed_revenue` is derived from ungated bank-feed
-   revenue, leaking gated information for no-feed rows (`scm.py:666-673`).
-   **Decision (2026-06-10): documented, deliberately NOT fixed before the
-   submission freeze.** Fixing alters the SCM, which invalidates every verified
-   number above (5-seed sweep, unified frontier, fidelity gate) and forces a
-   full re-verification cycle — disproportionate for a realism nuance in the
-   validation world. First task if this harness outlives the hackathon.
+2. ~~`requested_amount_to_observed_revenue` is derived from ungated bank-feed
+   revenue, leaking gated information for no-feed rows (`scm.py:666-673`).~~
+   **FIXED 2026-06-11 (design a).** A single-seed diagnostic sized the leak at
+   −42% of the seed-42 strong gap (+0.0135 → +0.0079), which made it
+   load-bearing for the §3 magnitude rather than a cosmetic nuance, so it was
+   gated to NaN for no-feed rows in both the SCM emit path and the estimator's
+   feed-OFF switch; true risk (ungated `st.values`) is unchanged. Re-verified:
+   fidelity 51/51 green (no check on the ratio), 50/50 tests green (one frozen
+   strong-gap threshold moved 0.008 → 0.005 by design, FLAT byte-identity
+   intact), 5-seed sweep + unified frontier re-run — corrected numbers are the
+   tables above. The conclusion held (gap stays 5/5 positive at 0.4; frontier
+   still 0.4); only the magnitudes shrank.

@@ -928,7 +928,12 @@ class StructuralBorrowerGenerator:
                 data[col] = np.asarray(st.values[col], dtype=float)
         df = pd.DataFrame(data, columns=FEATURE_COLUMNS)
         # Structural missingness: bank-feed block null where no feed linked.
-        df.loc[~st.has_feed, list(BANK_FEED_COLUMNS)] = np.nan
+        # DIAG(leak-fix a): the revenue-derived ratio is computed at draw time from
+        # the *ungated* bank-feed revenue, so no-feed rows would otherwise carry feed
+        # information the structural-missingness design says they cannot have. Gate it
+        # alongside the block. True risk is unaffected (it reads st.values, ungated).
+        gated = list(BANK_FEED_COLUMNS) + ["requested_amount_to_observed_revenue"]
+        df.loc[~st.has_feed, gated] = np.nan
         return df
 
     # ------------------------------------------------------------------ #

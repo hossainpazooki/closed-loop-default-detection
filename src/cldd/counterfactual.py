@@ -517,6 +517,11 @@ class GComputationEstimator:
         cur_feed = post_rows[:, feed_col] > 0.5
         flips = new_feed != cur_feed
         block_cols = [self.col_index[c] for c in BANK_FEED_COLUMNS]
+        # DIAG(leak-fix a): the revenue-derived ratio is gated with the block, so a
+        # feed-OFF flip must hide it too (turning feed ON re-imputes it via the
+        # observed-revenue child mechanism already, since it is a feed-parented node).
+        if "requested_amount_to_observed_revenue" in self.col_index:
+            block_cols = block_cols + [self.col_index["requested_amount_to_observed_revenue"]]
 
         post_rows[:, feed_col] = new_feed.astype(float)
         # Turn feeds OFF -> hide the block (structural missingness).
