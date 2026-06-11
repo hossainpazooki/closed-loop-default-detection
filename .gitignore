@@ -5,6 +5,8 @@ artifacts/*
 !artifacts/clue_frontier.csv
 !artifacts/clue_frontier_scm.csv
 !artifacts/seed_sweep.csv
+!artifacts/exploration_frontier.csv
+!artifacts/feedback_generations.csv
 
 # Python
 __pycache__/

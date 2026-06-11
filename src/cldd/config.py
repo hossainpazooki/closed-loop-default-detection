@@ -58,3 +58,23 @@ MAX_ROUNDS = 8
 TARGET_DECLINED_ECE = 0.10
 
 DEFAULT_N_APPLICANTS = 4000
+
+# --------------------------------------------------------------------------- #
+# Observable positivity-diagnostic thresholds (cldd.diagnostics)
+# --------------------------------------------------------------------------- #
+# Calibrated on this harness's severity grids (flat + SCM, seeds {7, 42, 2026},
+# n=4000): each component individually separates every pass-severity cell
+# (<= 0.4) from every fail-severity cell (>= 0.6) in all 6 grid runs —
+# pass-side worst cases AUC 0.831 / ESS 0.915 / floor 0.0025 vs fail-side worst
+# cases 0.877 / 0.844 / 0.020. The flag detects the positivity-breakdown
+# REGIME, not per-cohort ECE (one flat seed missed the 0.10 ECE target at
+# severity 0.4 with healthy diagnostics). A *proposal* for real-data
+# monitoring, validated only in the two synthetic worlds.
+DIAG_PROPENSITY_AUC_MAX = 0.85
+DIAG_ESS_RATIO_MIN = 0.875
+DIAG_UNFUNDED_BELOW_FLOOR_MAX = 0.01
+
+# Exploration lever: dedicated RNG stream tags so the explore draw can never
+# collide with (or shift) a generator's PCG64 stream or another lever's draw.
+EXPLORE_STREAM_LOOP = 7919
+EXPLORE_STREAM_FEEDBACK = 104729

@@ -114,17 +114,25 @@ def fit_observed_model(cohort: dict, sample_weight=None, random_state: int | Non
     )
 
 
-def score_pd_detection(model: model_pd.CalibratedPDModel, cohort: dict, threshold: float | None = None) -> dict:
+def score_pd_detection(
+    model: model_pd.CalibratedPDModel,
+    cohort: dict,
+    threshold: float | None = None,
+    funded=None,
+) -> dict:
     """Score ``model`` on the full cohort vs planted truth, split by subpopulation.
 
     Returns ``{'all', 'approved', 'declined'}`` -> :class:`SubgroupMetrics`, plus
-    the raw ``predictions``.
+    the raw ``predictions``. ``funded`` overrides the subgrouping mask (default:
+    the cohort's prior-policy ``approved``) — the exploration lever and the
+    feedback loop pass the mask of rows that were *actually* funded, so
+    ``'declined'`` is exactly the never-labeled (out-of-training) population.
     """
     threshold = config.POLICY_PD_THRESHOLD if threshold is None else threshold
     X = cohort["features"].to_numpy(dtype=float)
     p = model_pd.predict_pd(model, X)
     y = cohort["true_default"]
-    approved = cohort["approved"]
+    approved = cohort["approved"] if funded is None else np.asarray(funded, dtype=bool)
     declined = ~approved
     return {
         "all": _subgroup_metrics(y, p, threshold),

@@ -1,5 +1,5 @@
-iteration,selection_severity,base_rate,approval_rate,naive_declined_ece,naive_declined_mean_pd,naive_declined_base_rate,naive_declined_auc,control_metric,passed,reweight_declined_ece,reweight_declined_mean_pd,retrain_declined_ece,retrain_train_seed
-0,0.0,0.1703,0.6,0.0361,0.1868,0.1812,0.8611,0.0359,True,0.0359,0.1907,0.0301,1042
-1,0.2,0.1762,0.6,0.0398,0.2063,0.2394,0.8573,0.0378,True,0.0378,0.2105,0.0499,1043
-2,0.4,0.1745,0.6,0.1123,0.2127,0.3044,0.7972,0.0969,True,0.0969,0.2198,0.1145,1044
-3,0.6,0.1655,0.6,0.2728,0.0924,0.3569,0.6535,0.2439,False,0.2439,0.1129,0.2201,1045
+iteration,selection_severity,base_rate,approval_rate,naive_declined_ece,naive_declined_mean_pd,naive_declined_base_rate,naive_declined_auc,control_metric,passed,reweight_declined_ece,reweight_declined_mean_pd,retrain_declined_ece,retrain_train_seed,diag_propensity_auc,diag_ess_ratio,diag_below_floor,diag_flagged
+0,0.0,0.1703,0.6,0.0361,0.1868,0.1812,0.8611,0.0359,True,0.0359,0.1907,0.0301,1042,0.8037,0.9893,0.0,False
+1,0.2,0.1762,0.6,0.0398,0.2063,0.2394,0.8573,0.0378,True,0.0378,0.2105,0.0499,1043,0.7859,0.9726,0.0,False
+2,0.4,0.1745,0.6,0.1123,0.2127,0.3044,0.7972,0.0969,True,0.0969,0.2198,0.1145,1044,0.82,0.9174,0.0013,False
+3,0.6,0.1655,0.6,0.2728,0.0924,0.3569,0.6535,0.2439,False,0.2439,0.1129,0.2201,1045,0.9207,0.7982,0.075,True
