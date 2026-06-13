@@ -51,6 +51,52 @@ round until the detector fails:
 "Default detection" is the **measure** stage: detecting and *calibrating* default risk on the
 subpopulation that real data structurally cannot score.
 
+## Closed-loop mechanism
+
+```mermaid
+flowchart LR
+    A["Generate synthetic cohort<br/>(plant true default, hide via approval policy)"] --> B["PD model<br/>(trained on approved rows only)"]
+    B --> C["Predicted PD on the<br/>declined subpopulation"]
+    C --> D["Measure vs planted truth<br/>(declined-cohort ECE)"]
+    D --> E["Correction levers:<br/>IPW reweight / disjoint retrain / exploration"]
+    E --> F{"Declined ECE &lt;= target?"}
+    F -->|"yes: escalate severity"| A
+    F -->|"no: stop"| G["Report operating frontier<br/>(highest passing severity)"]
+
+    D --> M["Observable positivity diagnostics<br/>(no declined labels needed)"]
+
+    B -. "deployment dynamic, simulated by FeedbackLoop" .-> N["Model's own approvals<br/>label the next generation"]
+    N -.-> B
+
+    C --> I["Earlier scoring of applicants<br/>real data cannot observe"]
+    M --> K["Drift / regime visibility"]
+    G --> L["Honest, disclosable limit"]
+```
+
+**Why it is useful**
+
+- **Earlier, broader detection.** The loop scores and *calibrates* default risk on the
+  **declined** applicants real data never labels — not just the approved book — so blind
+  spots surface before they cost anything.
+- **Improvement from observed outcomes (within the harness).** Each round applies correction
+  levers (IPW reweight, disjoint-cohort retrain, exploration-bought labels) and re-measures;
+  `FeedbackLoop` additionally simulates the deployment dynamic where the model's own approvals
+  shape the next generation's training labels.
+- **Drift and performance visibility.** Observable positivity diagnostics fire *without any
+  declined-row label*, and the fidelity gate guards the synthetic world against real-data drift.
+- **A clear, checked feedback path.** Every correction is graded against planted ground truth,
+  so the loop reports a defensible **operating frontier** instead of an unverifiable score.
+
+> **What this loop is — and isn't.** This is a **synthetic validation harness**, not a live
+> production pipeline. The "retrain" lever and the dashed feedback arrow are **deterministic,
+> seeded simulations** run inside the harness (the disjoint-cohort retrain lever; the
+> `FeedbackLoop` generations) used to characterize the model's limits — **the system does not
+> retrain automatically and does not act on live data or real lending decisions.** A deployed
+> system's "decision → observed outcome" path is modeled here by the synthetic approval policy
+> and, for the model-as-policy dynamic, by `FeedbackLoop`. Wiring any of this into a real
+> submission or production system is a separate, manual step (see [Scope-style note in
+> Development notes](#development-notes)).
+
 ## Key capabilities
 
 - **Operating-frontier search** over selection severity with three correction levers
