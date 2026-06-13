@@ -1,169 +1,293 @@
 # closed-loop-default-detection
 
-A **CLUE-style closed loop** that measures — and stress-tests — probability-of-default
-(PD) modeling under **selective labels**, the central difficulty of the Intuit TechWeek
-SMB Underwriting Challenge.
+A self-contained research harness that stress-tests **probability-of-default (PD)**
+modeling under **selective labels** — the central difficulty of the Intuit TechWeek SMB
+Underwriting Challenge — and reports the model's honest **operating frontier**.
 
-## The problem, in one paragraph
+- **For a stakeholder:** it answers "how far can our PD model be trusted on applicants we
+  *declined* and therefore never observed, and where does it stop being trustworthy?"
+- **For a developer:** it is a small, deterministic, `sklearn`-only Python package (`cldd`)
+  plus a handful of driver scripts that generate synthetic lending cohorts, hide their
+  ground truth, and measure correction methods against it.
 
-In real lending data you only observe repayment outcomes for loans the prior underwriter
-**approved**. The applicants it **declined** are exactly the ones you must still score — and
-their ground truth does not exist, so you can't measure how good your PD model is on them.
-This harness sidesteps that the way [CLUE](../upstream-label-correction) sidesteps unmeasurable
-label error: it **plants** the ground truth in synthetic cohorts, **hides** it through a
-realistic approval policy, measures the model on the unobservable declines, then **escalates**
-the selection severity until the model breaks — reporting the **operating frontier**, the
-honest limit you'd disclose to a regulator.
+> **The independent results assessment lives in [`FABLE.md`](FABLE.md).** This README is
+> the onboarding and operations guide. Architecture/handoff detail is in
+> [`SESSION_HANDOFF.md`](SESSION_HANDOFF.md).
 
-## The loop
+---
 
-**generate → measure → improve → regenerate**, escalating until the detector breaks:
+## Project overview
 
-1. **Generate** (`cldd/synthetic.py`) — a synthetic SMB cohort with a planted true
-   `default_flag` for *every* applicant. A prior-underwriter policy funds the lowest-risk
-   fraction; `selection_severity ∈ [0,1]` sets how tightly approval tracks true risk
-   (0 = random, 1 = approval tracks the full latent risk **including an unobserved
-   confounder**). Outcomes are observable only for approved rows — selective labels by construction.
-2. **Measure** (`cldd/eval_default.py`) — train the PD model on approved rows only, score it
-   against planted truth on the **declined** subpopulation. Declined calibration error (ECE)
-   is the headline metric.
-3. **Improve** (`cldd/loop.py`) — three levers:
-   - **IPW reweight** — inverse-propensity reweighting of approved training rows to undo
-     prior-approval selection bias.
-   - **Retrain** — refit on a **disjoint** train cohort (offset seed), score on the held-out
-     measure cohort: an honest, no-leakage metric.
-   - **Exploration** (`exploration_rate=eps`) — randomly approve an eps-fraction of declines
-     to *buy* labels, then train with **exact** labeled-propensity weights (approvals 1,
-     explored declines 1/eps). Those weights are known by construction, not fitted, so the
-     unobserved confounder can't distort them — the only lever that buys *identification*
-     rather than reweighting. Its cost (defaults among explored loans) is explicit and observable.
-4. **Regenerate / frontier** — if the corrected model still clears the target on declines, raise
-   the severity and probe a harder regime; otherwise stop and report the **frontier** (highest
-   passing severity).
+Real lending data only records repayment outcomes for loans a prior underwriter
+**approved**. The **declined** applicants — the ones a new model must still score — have no
+ground truth, so you cannot directly measure calibration on them. This is the *selective
+labels* problem.
 
-Because part of the selection runs through an **unobserved confounder**, IPW (which sees only
-observed features) corrects less and less as severity rises — so the frontier is real.
+This harness sidesteps it by working in synthetic worlds where the ground truth is known:
 
-## What it found
+1. **Plant** a true `default_flag` for *every* applicant in a synthetic cohort.
+2. **Hide** it through a realistic approval policy (only approved rows get observed labels).
+3. **Measure** a PD model trained on approved rows against the planted truth on the
+   *declined* subpopulation.
+4. **Escalate** the selection severity until correction breaks, and report the **frontier**
+   (the highest severity at which calibration still passes).
 
-The headline results and the full independent assessment live in **[`FABLE.md`](FABLE.md)**.
-In short:
+Because part of the approval policy runs through an **unobserved confounder**, observational
+corrections (like inverse-propensity weighting) degrade as severity rises — so the frontier
+is a real, defensible limit, not an artifact.
 
-- **Operating frontier ≈ severity 0.4.** IPW holds calibrated PD on the unobservable declines
-  out to severity 0.4; past it, positivity breaks and the unobserved confounder leaks through.
-- **A deployable g-computation estimator beats naive conditioning — inside the frontier.** On
-  the slice where interventions propagate, the MAE gap is **+0.0134 ± 0.0085 across 25 seeds,
-  positive on 24/25** (~13.5% relative). Past the frontier the advantage collapses to negligible.
-- **Both limits share one cause.** The calibration frontier breaks and the counterfactual
-  advantage collapses at the *same* severity, for the same reason — selection on an unobserved
-  confounder. That single mechanism, measured two independent ways, is the result worth telling.
+## What "closed-loop default detection" means here
 
-The win is real but **small and honestly far from full recovery** — `FABLE.md` states the
-magnitude, the bias trade-off, and what *not* to claim.
+"Closed loop" is the **generate → measure → improve → regenerate** cycle, escalating each
+round until the detector fails:
 
-## Closing the loop: feedback, exploration, observable diagnostics
+| Stage | Module | What happens |
+|---|---|---|
+| **Generate** | `cldd/synthetic.py` (or `cldd/scm.py`) | build a cohort at a given `selection_severity ∈ [0,1]` (0 = approval random w.r.t. risk, 1 = approval tracks full latent risk incl. an unobserved confounder) |
+| **Measure** | `cldd/eval_default.py` | train PD model on approved rows only; score against planted truth on the **declined** subpopulation (ECE is the headline metric) |
+| **Improve** | `cldd/loop.py` | apply correction levers — **IPW reweight**, **retrain** on a disjoint no-leakage cohort, **exploration** (buy labels) |
+| **Regenerate / frontier** | `cldd/loop.py` | if the corrected model still clears the target, raise severity; otherwise stop and report the frontier |
 
-The static loop above corrects against a **fixed** prior policy. The post-hackathon expansion
-(rationale in `FABLE.md`) closes it for real with three additions, all **measured in the two
-synthetic worlds only**:
+"Default detection" is the **measure** stage: detecting and *calibrating* default risk on the
+subpopulation that real data structurally cannot score.
 
-**`cldd/feedback.py` — the model becomes the policy.** From generation 1 the *deployed model's*
-own top-k approvals decide which outcomes the next model trains on. This reproduces the deceptive
-real-world dynamic: the funded book *improves* (gen-1 default rate 0.076 → 0.047) while the
-model's under-prediction on its own declines roughly **doubles** — everything a lender observes
-looks fine while the blind spot grows. A 5% exploration budget cuts the mean blind-spot
-under-prediction over generations from +0.15/+0.13 to +0.06/+0.05 and declined-ECE from
-0.166/0.134 to 0.118/0.107 (seeds {7,42,2026} × severities {0.4,1.0}). Per-generation ECE is
-noisy/non-monotone, so tests assert only the bias reduction. → `artifacts/feedback_generations.csv`.
+## Key capabilities
 
-**`cldd/diagnostics.py` — a positivity alarm that needs no declined labels.** Propensity
-separability (AUC), IPW effective-sample-size ratio, and the share of declines below the
-propensity clip floor — all computable on observed data alone. Calibrated on both worlds'
-severity grids (seeds {7,42,2026}), each component separates every pass-severity (≤ 0.4) cell
-from every fail-severity (≥ 0.6) cell. It is a **regime detector, not a per-cohort ECE
-predictor** (one flat seed missed the ECE target at 0.4 with healthy diagnostics). In the
-feedback world it fires from generation 1. → `diag_*` columns on every loop round.
+- **Operating-frontier search** over selection severity with three correction levers
+  (IPW reweight / disjoint-cohort retrain / exploration).
+- **Two synthetic worlds:** a lightweight flat generator (`synthetic.py`) and a fitted,
+  layered **structural causal model** (`scm.py`) whose marginals match the real dataset.
+- **Fidelity gate** (`fidelity.py`): verifies the SCM cohort against real-data marginals and
+  exits non-zero on drift.
+- **Counterfactual validator** (`counterfactual.py`): grades a *deployable* g-computation
+  estimator of `do(feature = value)` against naive conditioning, scored on planted truth.
+- **Model-in-the-loop feedback simulation** (`feedback.py`): the deployed model's own
+  approvals decide the next generation's training labels.
+- **Observable positivity diagnostics** (`diagnostics.py`): a regime alarm computable
+  *without any declined-row label*.
+- **Deterministic and reproducible:** all randomness flows through seeded
+  `numpy.random.Generator` streams; dependencies are version-pinned (see below).
 
-**Exploration extends the frontier where nothing observational works.** At severity 0.6 — past
-the certified frontier, where IPW is defeated by the unobserved confounder — a 10% exploration
-budget holds declined-ECE at 0.076 / 0.092 / 0.155 (seeds {7,42,2026}) vs IPW's
-0.249 / 0.244 / 0.253, clearing the 0.10 target on 2/3 seeds (~150–170 bought labels per round,
-explored-loan default rates 2–3× the funded book). Budgets of 2–5% are too noisy to certify at
-n=4000. → `artifacts/exploration_frontier.csv`.
-
-> **Status / honesty.** All three are measured in this harness's two synthetic worlds; the
-> diagnostics thresholds are a **proposal** for real-data monitoring, validated nowhere else
-> yet. The in-sample propensity-separability AUC inflates at smaller n (documented in
-> `test_diagnostics`), so the flag is calibrated at n=4000 and is a regime detector, not a
-> per-cohort ECE predictor.
-
-## Lineage: CLUE → this repo
-
-The closed-loop *pattern* is borrowed from a prior project ([`upstream-label-correction`](../upstream-label-correction)),
-taken only as the abstract loop shape — none of its domain specifics carry over.
-
-| CLUE (`upstream-label-correction`) | This repo |
-|---|---|
-| Synthetic multi-omics cohort | Synthetic SMB applicant cohort |
-| `mislabel_fraction` corruption | `selection_severity` (label-hiding aggressiveness) |
-| Planted `mislabeled_samples` | Planted true `default_flag` for **all** applicants |
-| Cross-omics distance detector | Calibrated PD model |
-| Detect mislabels (F1) | Detect defaulters + calibrate PD **on declines** |
-| `improve_mode` threshold/retrain/both | `improve_mode` reweight/retrain/both |
-| `train_seed_offset` no-leakage | Same — disjoint train cohort |
-| Operating frontier (max corruption passing) | Max selection severity passing |
-
-## Layout
-
-Two generators coexist on purpose: `synthetic.py` (the lightweight flat world the loop runs on)
-and `scm.py` (the fitted, causal world used by the fidelity gate and the counterfactual
-validator). `scm.py` returns a superset of the loop's cohort contract, so the loop can run on
-either.
+## Repository structure
 
 ```
-src/cldd/
-  config.py         seeds, loan economics, severity grid, target metric, diagnostic thresholds
-  synthetic.py      SyntheticBorrowerGenerator   — flat selective-labels world (drives the loop)
-  scm.py            StructuralBorrowerGenerator  — fitted SCM world (fidelity + counterfactuals)
-  model_pd.py       calibrated PD model (HistGBT + isotonic) + IPW weights
-  eval_default.py   measure: train-on-approved / score-on-truth (all/approved/declined)
-  loop.py           SelectiveLabelsLoop          — improve / frontier (+ exploration + diagnostics)
-  feedback.py       FeedbackLoop                 — model-in-the-loop selective labels over generations
-  diagnostics.py    observable positivity diagnostics (no declined labels needed)
-  fidelity.py       VERIFY-FIDELITY gate vs the real-data marginals
-  counterfactual.py Deliverable-C query set + estimator grading (naive vs g-computation)
-scripts/
-  run_clue.py               run the loop          -> artifacts/clue_frontier{,_scm}.{csv,png}
-  run_exploration_sweep.py  frontier vs budget    -> artifacts/exploration_frontier.csv
-  run_feedback.py           feedback generations  -> artifacts/feedback_generations.csv
-  run_seed_sweep.py         multi-seed certification -> artifacts/seed_sweep.csv
-  paired_significance.py    paired test on the sweep -> artifacts/paired_significance.csv
-  check_fidelity.py         fidelity gate, exit nonzero on drift
-tests/   determinism, selection bias, IPW recovery, no-leakage, frontier,
-         exploration, feedback, diagnostics, fidelity, counterfactual
+.
+├── src/cldd/                 # the package (import as `cldd`)
+│   ├── config.py             # seeds, loan economics, severity grid, diagnostic thresholds
+│   ├── synthetic.py          # SyntheticBorrowerGenerator — flat world (drives the loop)
+│   ├── scm.py                # StructuralBorrowerGenerator — fitted SCM world
+│   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + IPW weights
+│   ├── eval_default.py       # measure: train-on-approved / score-on-truth
+│   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
+│   ├── feedback.py           # FeedbackLoop — model-in-the-loop selective labels
+│   ├── diagnostics.py        # observable positivity diagnostics
+│   ├── fidelity.py           # VERIFY-FIDELITY gate vs real-data marginals
+│   └── counterfactual.py     # Deliverable-C query set + estimator grading
+├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
+│   ├── run_clue.py           # the closed loop → clue_frontier{,_scm}.{csv,png}
+│   ├── run_seed_sweep.py     # multi-seed counterfactual certification → seed_sweep.csv
+│   ├── run_exploration_sweep.py  # frontier vs exploration budget → exploration_frontier.csv
+│   ├── run_feedback.py       # feedback generations → feedback_generations.csv
+│   ├── paired_significance.py    # paired test on the sweep → paired_significance.csv
+│   └── check_fidelity.py     # fidelity gate (exit non-zero on drift)
+├── tests/                    # pytest suite (66 tests)
+├── artifacts/                # outputs: CSVs (some committed as evidence) + PNGs (gitignored)
+├── pyproject.toml            # package metadata + pinned dependencies
+├── requirements-dev.txt      # pinned dev environment (mirror of the pins)
+├── FABLE.md                  # independent results & methodology assessment
+└── SESSION_HANDOFF.md        # architecture / handoff notes
 ```
 
-## Quick start
+## Setup and installation
+
+**Requirements:** Python ≥ 3.10. No system services, no database, no Docker.
 
 ```bash
-python -m venv .venv && . .venv/Scripts/activate   # Windows; use bin/activate on *nix
-pip install -e ".[dev]"                            # pins scikit-learn 1.9.0 / numpy 2.4.6
-
-pytest                                             # 66/66
-python scripts/run_clue.py                         # frontier table + plot in artifacts/
+python -m venv .venv
+. .venv/Scripts/activate          # Windows; use `. .venv/bin/activate` on macOS/Linux
+pip install -e ".[dev]"           # editable install + pytest
 ```
 
-`run_clue.py` writes `artifacts/clue_frontier.{csv,png}` and prints a summary written for the
-challenge's Deliverable D (§3 causal reasoning, §4 calibration, §5 limitations).
+This installs the **version-pinned** stack from `pyproject.toml`:
+`numpy==2.4.6`, `pandas>=2.2`, `scikit-learn==1.9.0`, `scipy>=1.11`, `matplotlib>=3.8`
+(+ `pytest>=8.0`). `requirements-dev.txt` mirrors these pins for non-editable setups.
 
-**On exact reproduction:** HistGradientBoosting's float output shifts across scikit-learn
-releases, so the committed numbers are pinned to **scikit-learn 1.9.0 / numpy 2.4.6** (Python
-3.14.2). On a different sklearn the last decimals move and 3 environment-sensitive tests differ —
-the pin keeps "tests green / numbers reproduce" deterministic. See `FABLE.md` §8.
+> **Why pins?** `HistGradientBoosting` float output shifts across scikit-learn releases.
+> The committed numbers and the frozen byte-identity test were captured under
+> **scikit-learn 1.9.0 / numpy 2.4.6** (Python 3.14.2); other versions move the last
+> decimals and make 3 environment-sensitive tests differ. See [Troubleshooting](#troubleshooting).
 
-## Scope
+## Configuration and environment variables
 
-Standalone and self-contained: it runs on synthetic data only and imports nothing from the
-hackathon submission repo. It is a **validation harness** — it does not produce or alter the
-challenge's A/B/C submission files. Wiring its conclusions (the IPW correction, the disclosed
-frontier, the g-computation method) into the real submission is a separate step.
+**There are no environment variables.** Configuration is code-level and explicit:
+
+- **`src/cldd/config.py`** is the single source of truth for the knobs:
+
+  | Constant | Default | Meaning |
+  |---|---|---|
+  | `RANDOM_SEED` | `42` | base seed for all streams |
+  | `TRAIN_SEED_OFFSET` | `1000` | disjoint-cohort offset for the no-leakage retrain lever |
+  | `START_SEVERITY` / `SEVERITY_STEP` / `MAX_SEVERITY` | `0.0` / `0.2` / `1.0` | the severity grid the loop sweeps |
+  | `MAX_ROUNDS` | `8` | frontier-search round cap |
+  | `TARGET_DECLINED_ECE` | `0.10` | a round passes when corrected declined ECE ≤ this |
+  | `DEFAULT_N_APPLICANTS` | `4000` | cohort size |
+  | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
+  | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
+
+- **Per-run options** are CLI flags on the driver scripts (see below), not env vars.
+- **Real-data location** for the fidelity gate is `cldd.fidelity.DEFAULT_DATA_DIR`. It
+  currently points at an absolute local path on the original author's machine
+  (`…/intuit-techweek-nyc-hackathon-2026/dataset`). **On any other machine, pass
+  `--data-dir /path/to/dataset` explicitly** — the gate is the only thing that touches real
+  data, and everything else is synthetic. *(TODO: make this default portable, e.g. an
+  env-var or relative-path fallback, instead of a hardcoded absolute path.)*
+
+## How to run locally
+
+All scripts are runnable directly (they put `src/` on the path, so no install is strictly
+required) and write to `artifacts/`.
+
+```bash
+# 1) The closed loop — builds the operating-frontier table + plot, prints a summary
+python scripts/run_clue.py                      # flat world (default)
+python scripts/run_clue.py --generator scm      # SCM world (writes *_scm artifacts)
+python scripts/run_clue.py --exploration-rate 0.10   # add the exploration lever
+
+# 2) Multi-seed counterfactual certification (g-computation vs naive)
+python scripts/run_seed_sweep.py                # full sweep
+python scripts/run_seed_sweep.py --quick        # seed 42 only (smoke)
+
+# 3) Exploration-budget sweep (frontier vs labels bought)
+python scripts/run_exploration_sweep.py [--quick]
+
+# 4) Model-in-the-loop feedback simulation
+python scripts/run_feedback.py [--quick]
+
+# 5) Paired significance test on the committed 25-seed sweep
+python scripts/paired_significance.py
+```
+
+`run_clue.py` prints a Deliverable-D-ready summary (frontier severity + §3/§4/§5 hooks) and
+writes `artifacts/clue_frontier.{csv,png}` (or `clue_frontier_scm.*` with `--generator scm`,
+so flat artifacts are never overwritten).
+
+## How to run tests and validation
+
+```bash
+pytest                          # full suite — expect 66 passed (pinned environment)
+pytest tests/test_loop.py       # a single module
+```
+
+Two project-specific "validation" gates beyond the unit tests:
+
+```bash
+# Fidelity gate — SCM cohort vs real-data marginals; exit 0 = pass, 1 = fail/data-missing
+python scripts/check_fidelity.py --data-dir /path/to/dataset
+python scripts/check_fidelity.py --data-dir /path/to/dataset --n 16000 --seed 42
+
+# Reproduce the headline statistic from committed evidence
+python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_25.csv
+```
+
+The fidelity gate needs the real `train.csv` (it is the *only* command that does); all other
+scripts and the whole test suite run on synthetic data alone.
+
+## Example usage / workflow
+
+**Typical flow:** install → run the loop → inspect the frontier → (optionally) certify the
+counterfactual result → check fidelity.
+
+```bash
+pip install -e ".[dev]"
+pytest                              # confirm 66/66 in your environment
+python scripts/run_clue.py          # operating frontier (flat world)
+python scripts/run_seed_sweep.py    # multi-seed counterfactual certification
+```
+
+**Using the package directly** (the same call the loop driver makes):
+
+```python
+from cldd import SelectiveLabelsLoop
+
+loop = SelectiveLabelsLoop(improve_mode="both")   # "reweight" | "retrain" | "both"
+result = loop.run()
+
+print("Operating frontier (highest passing severity):", result.frontier_severity)
+for r in result.rounds:
+    print(r.selection_severity, r.naive.declined_ece, r.passed)
+```
+
+Other public entry points exported from `cldd` include `StructuralBorrowerGenerator`,
+`run_counterfactual_eval`, `GComputationEstimator`, `FeedbackLoop`, and
+`positivity_diagnostics` (see `src/cldd/__init__.py` for the full list).
+
+## Data inputs and outputs
+
+**Inputs**
+
+- **None required** for the loop, counterfactual eval, feedback simulation, or tests — all
+  cohorts are generated synthetically from seeds.
+- **Real dataset (fidelity gate only):** a directory containing `train.csv` (the Intuit SMB
+  dataset, distributed with the sibling hackathon repo), supplied via `--data-dir`.
+
+**Outputs** (written to `artifacts/`)
+
+| File | Produced by | Notes |
+|---|---|---|
+| `clue_frontier.{csv,png}` / `clue_frontier_scm.{csv,png}` | `run_clue.py` | frontier table + plot |
+| `seed_sweep.csv` | `run_seed_sweep.py` | 5-seed counterfactual certification (committed) |
+| `seed_sweep_25.csv`, `severity_curve.csv` | committed evidence | 25-seed sweep + collapse curve |
+| `exploration_frontier.csv` | `run_exploration_sweep.py` | frontier vs exploration budget |
+| `feedback_generations.csv` | `run_feedback.py` | per-generation feedback metrics |
+| `paired_significance.csv` | `paired_significance.py` | paired test on the 25-seed gap |
+
+`artifacts/` is gitignored **except** an allowlist of CSVs (and the sweep driver) that are
+committed so the figures quoted in `FABLE.md` are recomputable from source. PNGs are not
+committed.
+
+## Development notes
+
+- **Determinism is an invariant.** Every run is byte-identical per seed; all randomness goes
+  through one seeded `numpy.random.Generator`, and levers use dedicated RNG stream tags
+  (`config.EXPLORE_STREAM_*`) so they can't shift a generator's stream.
+- **No-leakage discipline.** The retrain lever fits on a disjoint cohort
+  (`RANDOM_SEED + TRAIN_SEED_OFFSET + iteration`); the naive PD model is fit on approved rows
+  only. Don't collapse these.
+- **Two generators, one contract.** `scm.py` returns a *superset* of the loop's cohort dict,
+  so `SelectiveLabelsLoop` can run on either world. Keep that contract stable.
+- **The fidelity gate is the guard.** Any change to SCM marginals must keep
+  `check_fidelity.py` green, or the tolerances must be revisited deliberately.
+- **Scope boundary.** This repo is a *validation harness*. It does **not** produce or alter
+  the challenge's A/B/C submission files; wiring its conclusions into a real submission is a
+  separate step (see `SESSION_HANDOFF.md`).
+- **`src/` layout.** Scripts inject `src/` onto `sys.path`, so they run without installing,
+  but `pip install -e .` is recommended for tests and imports.
+
+## Troubleshooting
+
+- **`pytest` shows a few failures with float mismatches (e.g. the byte-identity baseline,
+  the seed-robustness or exploration-bias thresholds).** You are almost certainly on a
+  different scikit-learn/numpy than the pins. `HistGradientBoosting` output shifts across
+  releases; install the pinned versions (`pip install -e ".[dev]"` or
+  `pip install -r requirements-dev.txt`). With **scikit-learn 1.9.0 / numpy 2.4.6** the suite
+  is 66/66. See `FABLE.md` §8 and `pyproject.toml`.
+- **`ModuleNotFoundError: No module named 'cldd'` when running `pytest`.** Install the package
+  (`pip install -e ".[dev]"`); the scripts add `src/` to the path themselves, but the tests
+  import `cldd` as an installed package.
+- **`check_fidelity.py` prints `ERROR: …` / exits 1 with "data not found".** The default
+  `DEFAULT_DATA_DIR` is a machine-specific absolute path. Pass `--data-dir /path/to/dataset`
+  pointing at a directory that contains `train.csv`.
+- **`run_seed_sweep.py` is slow / memory-heavy.** By design it launches **one subprocess per
+  (seed, severity) eval** — two evals in a single process have exhausted memory. Use
+  `--quick` for a seed-42 smoke run.
+- **No plot window appears.** Scripts use the headless `Agg` matplotlib backend and write PNGs
+  to `artifacts/`; there is nothing to display interactively.
+
+---
+
+### Related documents
+
+- **[`FABLE.md`](FABLE.md)** — independent assessment of the results (the numbers, the limits,
+  what to claim and what not to).
+- **[`SESSION_HANDOFF.md`](SESSION_HANDOFF.md)** — deeper architecture, the SCM design, and the
+  public API surface.
