@@ -36,21 +36,6 @@ Because part of the approval policy runs through an **unobserved confounder**, o
 corrections (like inverse-propensity weighting) degrade as severity rises — so the frontier
 is a real, defensible limit, not an artifact.
 
-## What "closed-loop default detection" means here
-
-"Closed loop" is the **generate → measure → improve → regenerate** cycle, escalating each
-round until the detector fails:
-
-| Stage | Module | What happens |
-|---|---|---|
-| **Generate** | `cldd/synthetic.py` (or `cldd/scm.py`) | build a cohort at a given `selection_severity ∈ [0,1]` (0 = approval random w.r.t. risk, 1 = approval tracks full latent risk incl. an unobserved confounder) |
-| **Measure** | `cldd/eval_default.py` | train PD model on approved rows only; score against planted truth on the **declined** subpopulation (ECE is the headline metric) |
-| **Improve** | `cldd/loop.py` | apply correction levers — **IPW reweight**, **retrain** on a disjoint no-leakage cohort, **exploration** (buy labels) |
-| **Regenerate / frontier** | `cldd/loop.py` | if the corrected model still clears the target, raise severity; otherwise stop and report the frontier |
-
-"Default detection" is the **measure** stage: detecting and *calibrating* default risk on the
-subpopulation that real data structurally cannot score.
-
 ## Closed-loop mechanism
 
 ```mermaid
@@ -97,6 +82,21 @@ flowchart LR
 > submission or production system is a separate, manual step (see [Scope-style note in
 > Development notes](#development-notes)).
 
+## What "closed-loop default detection" means here
+
+"Closed loop" is the **generate → measure → improve → regenerate** cycle, escalating each
+round until the detector fails:
+
+| Stage | Module | What happens |
+|---|---|---|
+| **Generate** | `cldd/synthetic.py` (or `cldd/scm.py`) | build a cohort at a given `selection_severity ∈ [0,1]` (0 = approval random w.r.t. risk, 1 = approval tracks full latent risk incl. an unobserved confounder) |
+| **Measure** | `cldd/eval_default.py` | train PD model on approved rows only; score against planted truth on the **declined** subpopulation (ECE is the headline metric) |
+| **Improve** | `cldd/loop.py` | apply correction levers — **IPW reweight**, **retrain** on a disjoint no-leakage cohort, **exploration** (buy labels) |
+| **Regenerate / frontier** | `cldd/loop.py` | if the corrected model still clears the target, raise severity; otherwise stop and report the frontier |
+
+"Default detection" is the **measure** stage: detecting and *calibrating* default risk on the
+subpopulation that real data structurally cannot score.
+
 ## Key capabilities
 
 - **Operating-frontier search** over selection severity with three correction levers
@@ -113,36 +113,6 @@ flowchart LR
   *without any declined-row label*.
 - **Deterministic and reproducible:** all randomness flows through seeded
   `numpy.random.Generator` streams; dependencies are version-pinned (see below).
-
-## Repository structure
-
-```
-.
-├── src/cldd/                 # the package (import as `cldd`)
-│   ├── config.py             # seeds, loan economics, severity grid, diagnostic thresholds
-│   ├── synthetic.py          # SyntheticBorrowerGenerator — flat world (drives the loop)
-│   ├── scm.py                # StructuralBorrowerGenerator — fitted SCM world
-│   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + IPW weights
-│   ├── eval_default.py       # measure: train-on-approved / score-on-truth
-│   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
-│   ├── feedback.py           # FeedbackLoop — model-in-the-loop selective labels
-│   ├── diagnostics.py        # observable positivity diagnostics
-│   ├── fidelity.py           # VERIFY-FIDELITY gate vs real-data marginals
-│   └── counterfactual.py     # Deliverable-C query set + estimator grading
-├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
-│   ├── run_clue.py           # the closed loop → clue_frontier{,_scm}.{csv,png}
-│   ├── run_seed_sweep.py     # multi-seed counterfactual certification → seed_sweep.csv
-│   ├── run_exploration_sweep.py  # frontier vs exploration budget → exploration_frontier.csv
-│   ├── run_feedback.py       # feedback generations → feedback_generations.csv
-│   ├── paired_significance.py    # paired test on the sweep → paired_significance.csv
-│   └── check_fidelity.py     # fidelity gate (exit non-zero on drift)
-├── tests/                    # pytest suite (66 tests)
-├── artifacts/                # outputs: CSVs (some committed as evidence) + PNGs (gitignored)
-├── pyproject.toml            # package metadata + pinned dependencies
-├── requirements-dev.txt      # pinned dev environment (mirror of the pins)
-├── FABLE.md                  # independent results & methodology assessment
-└── SESSION_HANDOFF.md        # architecture / handoff notes
-```
 
 ## Setup and installation
 
@@ -162,31 +132,6 @@ This installs the **version-pinned** stack from `pyproject.toml`:
 > The committed numbers and the frozen byte-identity test were captured under
 > **scikit-learn 1.9.0 / numpy 2.4.6** (Python 3.14.2); other versions move the last
 > decimals and make 3 environment-sensitive tests differ. See [Troubleshooting](#troubleshooting).
-
-## Configuration and environment variables
-
-**There are no environment variables.** Configuration is code-level and explicit:
-
-- **`src/cldd/config.py`** is the single source of truth for the knobs:
-
-  | Constant | Default | Meaning |
-  |---|---|---|
-  | `RANDOM_SEED` | `42` | base seed for all streams |
-  | `TRAIN_SEED_OFFSET` | `1000` | disjoint-cohort offset for the no-leakage retrain lever |
-  | `START_SEVERITY` / `SEVERITY_STEP` / `MAX_SEVERITY` | `0.0` / `0.2` / `1.0` | the severity grid the loop sweeps |
-  | `MAX_ROUNDS` | `8` | frontier-search round cap |
-  | `TARGET_DECLINED_ECE` | `0.10` | a round passes when corrected declined ECE ≤ this |
-  | `DEFAULT_N_APPLICANTS` | `4000` | cohort size |
-  | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
-  | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
-
-- **Per-run options** are CLI flags on the driver scripts (see below), not env vars.
-- **Real-data location** for the fidelity gate is `cldd.fidelity.DEFAULT_DATA_DIR`. It
-  currently points at an absolute local path on the original author's machine
-  (`…/intuit-techweek-nyc-hackathon-2026/dataset`). **On any other machine, pass
-  `--data-dir /path/to/dataset` explicitly** — the gate is the only thing that touches real
-  data, and everything else is synthetic. *(TODO: make this default portable, e.g. an
-  env-var or relative-path fallback, instead of a hardcoded absolute path.)*
 
 ## How to run locally
 
@@ -266,6 +211,62 @@ for r in result.rounds:
 Other public entry points exported from `cldd` include `StructuralBorrowerGenerator`,
 `run_counterfactual_eval`, `GComputationEstimator`, `FeedbackLoop`, and
 `positivity_diagnostics` (see `src/cldd/__init__.py` for the full list).
+
+## Repository structure
+
+```
+.
+├── src/cldd/                 # the package (import as `cldd`)
+│   ├── config.py             # seeds, loan economics, severity grid, diagnostic thresholds
+│   ├── synthetic.py          # SyntheticBorrowerGenerator — flat world (drives the loop)
+│   ├── scm.py                # StructuralBorrowerGenerator — fitted SCM world
+│   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + IPW weights
+│   ├── eval_default.py       # measure: train-on-approved / score-on-truth
+│   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
+│   ├── feedback.py           # FeedbackLoop — model-in-the-loop selective labels
+│   ├── diagnostics.py        # observable positivity diagnostics
+│   ├── fidelity.py           # VERIFY-FIDELITY gate vs real-data marginals
+│   └── counterfactual.py     # Deliverable-C query set + estimator grading
+├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
+│   ├── run_clue.py           # the closed loop → clue_frontier{,_scm}.{csv,png}
+│   ├── run_seed_sweep.py     # multi-seed counterfactual certification → seed_sweep.csv
+│   ├── run_exploration_sweep.py  # frontier vs exploration budget → exploration_frontier.csv
+│   ├── run_feedback.py       # feedback generations → feedback_generations.csv
+│   ├── paired_significance.py    # paired test on the sweep → paired_significance.csv
+│   └── check_fidelity.py     # fidelity gate (exit non-zero on drift)
+├── tests/                    # pytest suite (66 tests)
+├── artifacts/                # outputs: CSVs (some committed as evidence) + PNGs (gitignored)
+├── pyproject.toml            # package metadata + pinned dependencies
+├── requirements-dev.txt      # pinned dev environment (mirror of the pins)
+├── FABLE.md                  # independent results & methodology assessment
+└── SESSION_HANDOFF.md        # architecture / handoff notes
+```
+
+## Configuration and environment variables
+
+**There are no environment variables.** Configuration is code-level and explicit:
+
+- **`src/cldd/config.py`** is the single source of truth for the knobs:
+
+  | Constant | Default | Meaning |
+  |---|---|---|
+  | `RANDOM_SEED` | `42` | base seed for all streams |
+  | `TRAIN_SEED_OFFSET` | `1000` | disjoint-cohort offset for the no-leakage retrain lever |
+  | `START_SEVERITY` / `SEVERITY_STEP` / `MAX_SEVERITY` | `0.0` / `0.2` / `1.0` | the severity grid the loop sweeps |
+  | `MAX_ROUNDS` | `8` | frontier-search round cap |
+  | `TARGET_DECLINED_ECE` | `0.10` | a round passes when corrected declined ECE ≤ this |
+  | `DEFAULT_N_APPLICANTS` | `4000` | cohort size |
+  | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
+  | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
+
+- **Per-run options** are CLI flags on the driver scripts (see [How to run
+  locally](#how-to-run-locally)), not env vars.
+- **Real-data location** for the fidelity gate is `cldd.fidelity.DEFAULT_DATA_DIR`. It
+  currently points at an absolute local path on the original author's machine
+  (`…/intuit-techweek-nyc-hackathon-2026/dataset`). **On any other machine, pass
+  `--data-dir /path/to/dataset` explicitly** — the gate is the only thing that touches real
+  data, and everything else is synthetic. *(TODO: make this default portable, e.g. an
+  env-var or relative-path fallback, instead of a hardcoded absolute path.)*
 
 ## Data inputs and outputs
 
