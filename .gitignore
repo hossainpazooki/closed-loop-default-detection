@@ -7,6 +7,7 @@ artifacts/*
 !artifacts/seed_sweep.csv
 !artifacts/seed_sweep_25.csv
 !artifacts/severity_curve.csv
+!artifacts/paired_significance.csv
 !artifacts/run_sweep_25_driver.py
 !artifacts/exploration_frontier.csv
 !artifacts/feedback_generations.csv

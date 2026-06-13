@@ -156,8 +156,11 @@ by intervenable / non-intervenable / propagation slices, plus `.summary()`.
 
 ## 6. Verified results (re-run independently this session)
 
-- **Tests:** `28 passed` across `test_synthetic` (6), `test_loop` (6),
-  `test_fidelity` (9), `test_counterfactual` (7).
+- **Tests:** `66 passed` in the pinned environment (Python 3.14.2,
+  scikit-learn 1.9.0, numpy 2.4.6). Under scikit-learn 1.8.0 exactly three
+  environment-sensitive tests differ (HistGradientBoosting float output shifts
+  across sklearn releases); the pin is now declared in `pyproject.toml`. Run
+  `pytest` for the authoritative count and module breakdown.
 - **Fidelity gate: PASSED.** Real (labeled n=51,722) vs synthetic (n=12,000):
   default base rate 0.1745 → 0.1666; `has_linked_bank_feed` 0.643 → 0.646;
   bank-feed missingness 0.357 → 0.354; all 16 intervenable features' p1/p50/p99
@@ -177,8 +180,8 @@ by intervenable / non-intervenable / propagation slices, plus `.summary()`.
 > at moderate selection (severity 0.4, inside the frontier) g-computation beats
 > naive conditioning on the strong descendant-propagation slice
 > **0.0734 → 0.0598 (gap +0.0135)**; the advantage shrinks toward noise at full
-> severity (+0.0038) — the same selective-labels limit §5 discloses. All 42 tests
-> pass; fidelity gate still green. The original gap descriptions are kept below as
+> severity (+0.0038) — the same selective-labels limit §5 discloses. All 66 tests
+> pass (pinned sklearn 1.9.0); fidelity gate still green. The original gap descriptions are kept below as
 > the record of what was changed.
 
 **Gap 1 — the "SCM-aware" estimator is the oracle.** In `counterfactual.py`,
@@ -219,7 +222,7 @@ git clone https://github.com/hossainpazooki/closed-loop-default-detection
 cd closed-loop-default-detection
 python -m venv .venv && . .venv/Scripts/activate    # *nix: bin/activate
 pip install -e ".[dev]"
-pytest                                               # 28 pass
+pytest                                               # 66 pass (pinned sklearn 1.9.0)
 python scripts/run_clue.py                           # selective-labels frontier
 python scripts/check_fidelity.py                     # fidelity gate (pass real-data dir if needed)
 ```

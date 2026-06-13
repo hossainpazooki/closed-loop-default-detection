@@ -139,6 +139,10 @@ _FLAT_FROZEN_ROUNDS = [
 _FLAT_FROZEN_FRONTIER = 0.2
 
 
+# The _FLAT_FROZEN_ROUNDS floats below were captured under scikit-learn 1.9.0
+# (pinned in pyproject.toml). This test is therefore version-sensitive: under
+# scikit-learn 1.8.0 the last decimals differ because HistGradientBoosting float
+# output shifts across releases, so the exact-equality assertion would fail.
 def test_flat_generator_byte_identical_to_pre_change_baseline():
     """generator="flat" (the default) reproduces the pre-change metrics exactly."""
     result = SelectiveLabelsLoop(

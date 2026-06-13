@@ -98,7 +98,9 @@ post-hackathon expansion (lessons recorded in `FABLE.md`) closes it for real:
 
 Status: all three are **measured in the two synthetic worlds** of this harness;
 the diagnostics thresholds are a *proposal* for real-data monitoring, validated
-nowhere else yet.
+nowhere else yet — and because the in-sample propensity-separability AUC inflates
+at smaller n (documented in `test_diagnostics`), the flag is calibrated at n=4000
+and is a regime detector, not a per-cohort ECE predictor.
 
 ## Layout
 

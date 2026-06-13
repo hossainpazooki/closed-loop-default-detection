@@ -1,0 +1,9 @@
+# Provenance environment for the committed artifacts + frozen byte-identity
+# baseline: Python 3.14.2, scikit-learn 1.9.0. scikit-learn and numpy are pinned
+# because HistGradientBoosting float output shifts across releases.
+numpy==2.4.6
+pandas>=2.2
+scikit-learn==1.9.0
+scipy>=1.11
+matplotlib>=3.8
+pytest>=8.0
