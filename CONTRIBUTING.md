@@ -99,6 +99,11 @@ loop = SelectiveLabelsLoop(correctors=[NaiveCorrector(), MyCorrector()])
 result = loop.run()
 ```
 
+The list **must include a `NaiveCorrector`** (or a corrector named `"naive"`): the
+loop projects it as the baseline `RoundResult.naive` and reads it each round, so a
+list without one raises a `ValueError` at construction (a clear failure rather than
+a mid-run `KeyError`).
+
 When `correctors` is omitted, the loop builds the default list from
 `improve_mode` / `exploration_rate` exactly as before — so the existing API is
 unchanged. See `examples/quickstart.py` for a runnable end-to-end demo.

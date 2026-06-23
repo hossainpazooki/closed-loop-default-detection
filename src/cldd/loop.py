@@ -231,6 +231,16 @@ class SelectiveLabelsLoop:
                 correctors.append(DisjointRetrainCorrector())
             if exploration_rate > 0.0:
                 correctors.append(ExplorationCorrector())
+        # RoundResult projects the baseline detector as the non-optional `.naive`
+        # field, and run() reads corrections["naive"] each round, so a custom
+        # corrector list must include one named "naive". Fail fast with a clear
+        # message instead of a mid-run KeyError. (The default list always does.)
+        if not any(c.name == "naive" for c in correctors):
+            raise ValueError(
+                "correctors must include a corrector named 'naive' (e.g. "
+                "NaiveCorrector()); the loop projects it as RoundResult.naive. "
+                f"Got names: {[c.name for c in correctors]}"
+            )
         self.correctors = correctors
 
     # ------------------------------------------------------------------ #

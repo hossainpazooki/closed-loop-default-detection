@@ -81,6 +81,14 @@ def test_custom_corrector_drives_control():
     assert r.naive is r.corrections["naive"]
 
 
+def test_corrector_list_without_naive_is_rejected():
+    """A custom corrector list missing a 'naive' lever fails fast at construction
+    with a clear ValueError, not a mid-run KeyError (regression guard for the
+    footgun surfaced by adversarial verification)."""
+    with pytest.raises(ValueError, match="naive"):
+        SelectiveLabelsLoop(correctors=[IPWReweightCorrector()])
+
+
 # Frozen by running:
 #   SelectiveLabelsLoop(improve_mode="both", max_rounds=1, n_applicants=800,
 #                       seed=42).run()  -> rounds[0]
