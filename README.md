@@ -46,14 +46,14 @@ severity until correction breaks:
 
 ```mermaid
 flowchart TD
-    A["<b>1. Generate</b><br/>synthetic cohort at severity s<br/>plant true default, then hide it via the approval policy"]
+    A["<b>1. Generate</b><br/>synthetic cohort at a given selection severity<br/>plant true default, then hide it via the approval policy"]
     B["<b>2. Measure</b><br/>train the PD model on approved rows only,<br/>score it against planted truth on the declined subpopulation"]
     C["<b>3. Improve</b><br/>apply a correction lever:<br/>IPW reweight &middot; disjoint retrain &middot; exploration"]
     D{"Corrected declined-cohort<br/>ECE &le; target?"}
-    E["<b>Operating frontier</b><br/>report the highest severity s<br/>that still passes"]
+    E["<b>Operating frontier</b><br/>report the highest severity<br/>that still passes"]
 
     A --> B --> C --> D
-    D -->|"yes &mdash; escalate severity s"| A
+    D -->|"yes &mdash; raise the severity"| A
     D -->|"no &mdash; stop"| E
 ```
 
