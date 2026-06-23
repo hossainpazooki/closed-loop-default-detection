@@ -6,6 +6,15 @@ generate (``synthetic``) -> measure (``eval_default``) -> improve/frontier
 
 from __future__ import annotations
 
+from .correctors import (
+    CorrectionOutcome,
+    Corrector,
+    CorrectorContext,
+    DisjointRetrainCorrector,
+    ExplorationCorrector,
+    IPWReweightCorrector,
+    NaiveCorrector,
+)
 from .counterfactual import (
     CounterfactualResult,
     GComputationEstimator,
@@ -42,6 +51,13 @@ __all__ = [
     "LoopResult",
     "RoundResult",
     "LeverMetrics",
+    "Corrector",
+    "CorrectorContext",
+    "CorrectionOutcome",
+    "NaiveCorrector",
+    "IPWReweightCorrector",
+    "DisjointRetrainCorrector",
+    "ExplorationCorrector",
     "FeedbackLoop",
     "FeedbackResult",
     "GenerationResult",

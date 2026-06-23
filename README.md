@@ -114,8 +114,9 @@ subpopulation that real data structurally cannot score.
 
 ## Key capabilities
 
-- **Operating-frontier search** over selection severity with three correction levers
-  (IPW reweight / disjoint-cohort retrain / exploration).
+- **Operating-frontier search** over selection severity with three built-in,
+  **pluggable** correction levers (IPW reweight / disjoint-cohort retrain /
+  exploration) — add your own by subclassing `Corrector` (see [Roadmap](#roadmap)).
 - **Two synthetic worlds:** a lightweight flat generator (`synthetic.py`) and a fitted,
   layered **structural causal model** (`scm.py`) whose marginals match the real dataset.
 - **Fidelity gate** (`fidelity.py`): verifies the SCM cohort against real-data marginals and
@@ -139,18 +140,18 @@ library other practitioners can adopt and contribute to. Status is explicit:
 - **[Shipped] Adoption baseline.** MIT `LICENSE`, CI (a `pinned-repro` full-suite
   job plus a cross-version/OS `compat` matrix), `CITATION.cff` + BibTeX, and range
   dependencies with the reproducibility pins preserved in `requirements-dev.txt`.
-- **[Planned] A pluggable correction interface.** Replace the `improve_mode` string
-  with a small `Corrector` protocol so that *adding a lever is adding a class*
-  (`SelectiveLabelsLoop(correctors=[...])`) — the way off-policy-evaluation libraries
-  register interchangeable estimators. This is the change that makes the loop
-  extensible by outside contributors.
-- **[Planned] A first-class fidelity report.** Promote the `fidelity.py` pass/fail
-  gate to a report object (`.get_score()` / `.get_details()`), the shape
-  synthetic-data tooling uses, so SCM-vs-real drift is drill-downable rather than a
-  single bit.
-- **[Planned] Docs and a runnable example.** A hosted API reference plus a quickstart
-  notebook that runs generate → measure → correct → frontier end-to-end on synthetic
-  data.
+- **[Shipped] A pluggable correction interface.** The `improve_mode` string is now
+  backed by a `Corrector` ABC (`cldd.correctors`): *adding a lever is adding a class*
+  (`SelectiveLabelsLoop(correctors=[...])`), the way off-policy-evaluation libraries
+  register interchangeable estimators. The legacy `improve_mode` / `exploration_rate`
+  API is unchanged (byte-identical), and `RoundResult.corrections` exposes the general
+  name→metrics map. See `CONTRIBUTING.md` → "Adding a correction lever".
+- **[Shipped] A first-class fidelity report.** `cldd.fidelity.FidelityReport` gained
+  SDMetrics-style `.get_score()` (0–1) and `.get_details()` (per-check DataFrame)
+  accessors, so SCM-vs-real drift is drill-downable, not just a pass/fail bit.
+- **[Shipped] A runnable quickstart.** `examples/quickstart.py` runs generate →
+  measure → correct → frontier end-to-end on synthetic data and demos a custom lever.
+  *(Still planned: a hosted Sphinx/RTD API reference.)*
 - **[Planned] A reject-inference module.** Named methods (augmentation, parcelling,
   reclassification, twins, reweighting) graded against the harness's planted ground
   truth — filling a real gap, since no maintained Python reject-inference library
@@ -215,12 +216,12 @@ so flat artifacts are never overwritten).
 ## How to run tests and validation
 
 ```bash
-pytest                          # full suite — expect 66 passed (pinned environment)
-pytest -m "not pinned"          # 63 tests — what the CI compat matrix runs off-pins
+pytest                          # full suite — expect 78 passed (pinned environment)
+pytest -m "not pinned"          # 74 tests — what the CI compat matrix runs off-pins
 pytest tests/test_loop.py       # a single module
 ```
 
-The three `pinned`-marked tests assert exact/tight floating-point output of the
+The four `pinned`-marked tests assert exact/tight floating-point output of the
 calibrated PD model and pass only under the `requirements-dev.txt` pins; on any
 other scikit-learn/numpy the last decimals move. CI runs them in the `pinned-repro`
 job and skips them in the cross-version `compat` matrix.
@@ -246,7 +247,7 @@ counterfactual result → check fidelity.
 
 ```bash
 pip install -e ".[dev]"
-pytest                              # confirm 66/66 in your environment
+pytest                              # confirm 78/78 in your environment
 python scripts/run_clue.py          # operating frontier (flat world)
 python scripts/run_seed_sweep.py    # multi-seed counterfactual certification
 ```
@@ -264,9 +265,27 @@ for r in result.rounds:
     print(r.selection_severity, r.naive.declined_ece, r.passed)
 ```
 
-Other public entry points exported from `cldd` include `StructuralBorrowerGenerator`,
-`run_counterfactual_eval`, `GComputationEstimator`, `FeedbackLoop`, and
-`positivity_diagnostics` (see `src/cldd/__init__.py` for the full list).
+**Adding a correction lever** — the levers are pluggable; pass `correctors=[...]`
+instead of `improve_mode`. A lever is a `Corrector` subclass (`name`,
+`control_priority`, `apply`); the present lever with the highest `control_priority`
+drives loop control, and `RoundResult.corrections` exposes the general name→metrics map:
+
+```python
+from cldd import SelectiveLabelsLoop, Corrector, NaiveCorrector, CorrectionOutcome
+
+class MyCorrector(Corrector):
+    name = "my_lever"
+    control_priority = 5          # built-ins: naive=0, retrain=1, reweight=2, explore=3
+    def apply(self, cohort, ctx) -> CorrectionOutcome:
+        ...                       # return CorrectionOutcome(metrics=..., info={})
+
+result = SelectiveLabelsLoop(correctors=[NaiveCorrector(), MyCorrector()]).run()
+```
+
+See `examples/quickstart.py` for a runnable demo and `CONTRIBUTING.md` for the full
+contract. Other public entry points exported from `cldd` include
+`StructuralBorrowerGenerator`, `run_counterfactual_eval`, `GComputationEstimator`,
+`FeedbackLoop`, and `positivity_diagnostics` (see `src/cldd/__init__.py`).
 
 ## Repository structure
 
@@ -279,6 +298,7 @@ Other public entry points exported from `cldd` include `StructuralBorrowerGenera
 │   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + IPW weights
 │   ├── eval_default.py       # measure: train-on-approved / score-on-truth
 │   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
+│   ├── correctors.py         # Corrector ABC + 4 pluggable levers (naive/reweight/retrain/explore)
 │   ├── feedback.py           # FeedbackLoop — model-in-the-loop selective labels
 │   ├── diagnostics.py        # observable positivity diagnostics
 │   ├── fidelity.py           # VERIFY-FIDELITY gate vs real-data marginals
@@ -290,10 +310,12 @@ Other public entry points exported from `cldd` include `StructuralBorrowerGenera
 │   ├── run_feedback.py       # feedback generations → feedback_generations.csv
 │   ├── paired_significance.py    # paired test on the sweep → paired_significance.csv
 │   └── check_fidelity.py     # fidelity gate (exit non-zero on drift)
-├── tests/                    # pytest suite (66 tests)
+├── tests/                    # pytest suite (78 tests)
+├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── artifacts/                # outputs: CSVs (some committed as evidence) + PNGs (gitignored)
-├── pyproject.toml            # package metadata + pinned dependencies
-├── requirements-dev.txt      # pinned dev environment (mirror of the pins)
+├── CONTRIBUTING.md           # dev setup + how to add a correction lever
+├── pyproject.toml            # package metadata + dependency ranges (provenance pins in requirements-dev.txt)
+├── requirements-dev.txt      # pinned dev environment (the provenance pins)
 ├── FABLE.md                  # independent results & methodology assessment
 └── SESSION_HANDOFF.md        # architecture / handoff notes
 ```
@@ -373,7 +395,7 @@ committed.
   different scikit-learn/numpy than the pins. `HistGradientBoosting` output shifts across
   releases; install the pinned versions (`pip install -e ".[dev]"` or
   `pip install -r requirements-dev.txt`). With **scikit-learn 1.9.0 / numpy 2.4.6** the suite
-  is 66/66. See `FABLE.md` §8 and `pyproject.toml`.
+  is 78/78. See `FABLE.md` §8 and `pyproject.toml`.
 - **`ModuleNotFoundError: No module named 'cldd'` when running `pytest`.** Install the package
   (`pip install -e ".[dev]"`); the scripts add `src/` to the path themselves, but the tests
   import `cldd` as an installed package.

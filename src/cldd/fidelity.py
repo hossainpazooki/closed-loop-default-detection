@@ -179,6 +179,50 @@ class FidelityReport:
         )
         return header + "\n" + "\n".join(lines) + "\n" + footer
 
+    def get_score(self) -> float:
+        """SDMetrics-style 0..1 quality score.
+
+        The score is the fraction of **counting** checks that passed -- i.e.
+        ``len(passed counting checks) / len(counting_checks)``. Informational
+        checks (``counts=False``) are excluded, matching how :attr:`passed` and
+        :attr:`n_failed` treat them. Returns ``float('nan')`` when there are no
+        counting checks (nothing to score).
+        """
+        counting = self.counting_checks
+        if not counting:
+            return float("nan")
+        n_passed = sum(c.passed for c in counting)
+        return float(n_passed) / float(len(counting))
+
+    def get_details(self) -> pd.DataFrame:
+        """SDMetrics-style per-check detail table as a DataFrame.
+
+        One row per check (all checks, counting and informational) with columns
+        ``[check, real, synth, diff, tolerance, kind, passed, counts]``. The
+        ``diff`` column uses each check's signed ``.diff`` for ``kind=="abs"``
+        checks and its signed ``.rel_diff`` for ``kind=="rel"`` checks, so the
+        magnitude is directly comparable to ``tolerance`` for that row.
+        """
+        rows = []
+        for c in self.checks:
+            diff = c.rel_diff if c.kind == "rel" else c.diff
+            rows.append(
+                {
+                    "check": c.name,
+                    "real": c.real,
+                    "synth": c.synth,
+                    "diff": diff,
+                    "tolerance": c.tolerance,
+                    "kind": c.kind,
+                    "passed": c.passed,
+                    "counts": c.counts,
+                }
+            )
+        columns = [
+            "check", "real", "synth", "diff", "tolerance", "kind", "passed", "counts",
+        ]
+        return pd.DataFrame(rows, columns=columns)
+
 
 # --------------------------------------------------------------------------- #
 # Loaders

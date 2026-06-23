@@ -36,21 +36,44 @@ round:
    cannot reach; if it can no longer clear it, stop and report the detector's
    **operating frontier** (the highest severity still passing).
 
-Loop *control* is keyed on the primary lever's declined-subpopulation ECE
-(``reweight`` when present, else ``retrain``, else naive); the other levers are
-reported alongside. Everything is deterministic for a given seed.
+Loop *control* is keyed on the declined-subpopulation ECE of the **primary**
+lever — the applied corrector with the highest ``control_priority`` (built-ins:
+explore 3 > reweight 2 > retrain 1 > naive 0; ties go to first-in-list); the
+other levers are reported alongside. The levers themselves are pluggable
+``Corrector`` objects (see :mod:`cldd.correctors`); ``improve_mode`` /
+``exploration_rate`` simply build the default list. Everything is deterministic
+for a given seed.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import numpy as np
-
-from . import config, eval_default, model_pd
+from . import config
+from .correctors import (
+    Corrector,
+    CorrectorContext,
+    DisjointRetrainCorrector,
+    ExplorationCorrector,
+    IPWReweightCorrector,
+    LeverMetrics,
+    NaiveCorrector,
+)
 from .diagnostics import PositivityDiagnostics, positivity_diagnostics
 from .scm import StructuralBorrowerGenerator
 from .synthetic import SyntheticBorrowerGenerator
+
+# Re-exported so existing ``from cldd.loop import LeverMetrics`` keeps working;
+# the dataclass itself now lives in :mod:`cldd.correctors`.
+__all__ = [
+    "IMPROVE_MODES",
+    "GENERATORS",
+    "make_generator",
+    "LeverMetrics",
+    "RoundResult",
+    "LoopResult",
+    "SelectiveLabelsLoop",
+]
 
 #: Valid improve levers.
 IMPROVE_MODES = ("reweight", "retrain", "both")
@@ -106,33 +129,6 @@ def make_generator(
 
 
 @dataclass
-class LeverMetrics:
-    """Declined-subpopulation focus + the all-population calibration for one lever."""
-
-    declined_ece: float
-    declined_auc: float
-    declined_brier: float
-    declined_mean_pd: float
-    declined_base_rate: float
-    declined_f1: float
-    all_ece: float
-
-    @classmethod
-    def from_scored(cls, scored: dict) -> "LeverMetrics":
-        d = scored["declined"]
-        a = scored["all"]
-        return cls(
-            declined_ece=d.ece,
-            declined_auc=d.auc,
-            declined_brier=d.brier,
-            declined_mean_pd=d.mean_pd,
-            declined_base_rate=d.base_rate,
-            declined_f1=d.f1,
-            all_ece=a.ece,
-        )
-
-
-@dataclass
 class RoundResult:
     """Outcome of one generate -> measure -> improve round."""
 
@@ -160,6 +156,10 @@ class RoundResult:
     #: Observable-only positivity diagnostics for the prior policy's selection
     #: (see :mod:`cldd.diagnostics`). Computed every round; needs no labels.
     diagnostics: PositivityDiagnostics | None = None
+    #: General name -> metrics map for every corrector applied this round. The
+    #: named ``naive``/``reweight``/``retrain``/``explore`` fields above are the
+    #: backward-compatible projection of this map for the four shipped levers.
+    corrections: dict[str, "LeverMetrics"] = field(default_factory=dict)
 
 
 @dataclass
@@ -198,6 +198,7 @@ class SelectiveLabelsLoop:
         policy_threshold: float = config.POLICY_PD_THRESHOLD,
         generator: str = "flat",
         exploration_rate: float = 0.0,
+        correctors: list[Corrector] | None = None,
     ) -> None:
         if improve_mode not in IMPROVE_MODES:
             raise ValueError(f"improve_mode must be one of {IMPROVE_MODES}; got {improve_mode!r}")
@@ -218,6 +219,19 @@ class SelectiveLabelsLoop:
         self.improve_mode = improve_mode
         self.train_seed_offset = train_seed_offset
         self.policy_threshold = policy_threshold
+        # When no explicit lever list is supplied, build the same set the legacy
+        # improve_mode/exploration_rate flags selected, in the same order:
+        # [naive, reweight?, retrain?, explore?]. Because each corrector uses an
+        # independent RNG seed, order does not affect numbers.
+        if correctors is None:
+            correctors = [NaiveCorrector()]
+            if improve_mode in ("reweight", "both"):
+                correctors.append(IPWReweightCorrector())
+            if improve_mode in ("retrain", "both"):
+                correctors.append(DisjointRetrainCorrector())
+            if exploration_rate > 0.0:
+                correctors.append(ExplorationCorrector())
+        self.correctors = correctors
 
     # ------------------------------------------------------------------ #
     # Cohort generation
@@ -255,54 +269,6 @@ class SelectiveLabelsLoop:
         return cohort, train_seed
 
     # ------------------------------------------------------------------ #
-    # Improve levers
-    # ------------------------------------------------------------------ #
-
-    def _measure_naive(self, cohort: dict) -> LeverMetrics:
-        model = eval_default.fit_observed_model(cohort, random_state=self.seed)
-        return LeverMetrics.from_scored(eval_default.score_pd_detection(model, cohort, self.policy_threshold))
-
-    def _measure_reweight(self, cohort: dict) -> LeverMetrics:
-        X = cohort["features"].to_numpy(dtype=float)
-        approved = cohort["approved"]
-        weights = model_pd.selection_adjusted_weights(X, approved, random_state=self.seed)
-        model = eval_default.fit_observed_model(cohort, sample_weight=weights[approved], random_state=self.seed)
-        return LeverMetrics.from_scored(eval_default.score_pd_detection(model, cohort, self.policy_threshold))
-
-    def _measure_retrain(self, measure_cohort: dict, severity: float, iteration: int) -> tuple[LeverMetrics, int]:
-        train_cohort, train_seed = self._generate_train(severity, iteration)
-        model = eval_default.fit_observed_model(train_cohort, random_state=train_seed)
-        scored = eval_default.score_pd_detection(model, measure_cohort, self.policy_threshold)
-        return LeverMetrics.from_scored(scored), train_seed
-
-    def _measure_explore(self, cohort: dict, iteration: int) -> tuple[LeverMetrics, int, int]:
-        """Exploration lever: buy labels on a random slice of the declines.
-
-        A dedicated RNG stream (seeded ``[seed, iteration, EXPLORE_STREAM_LOOP]``)
-        draws the explored set, so generator streams and the default path are
-        untouched. Training uses *exact* labeled-propensity weights: policy
-        approvals are labeled with probability 1 (weight 1), explored declines
-        with probability ``exploration_rate`` (weight ``1/rate``) — no fitted
-        propensity model, hence nothing the unobserved confounder can distort.
-        Scoring funds the explored rows (they really were funded), so the
-        ``declined`` slice is the unexplored declines: still a uniform random
-        subsample of the policy's declines, and never seen in training.
-        """
-        rng = np.random.default_rng([self.seed, iteration, config.EXPLORE_STREAM_LOOP])
-        approved = cohort["approved"]
-        explored = (~approved) & (rng.random(approved.shape[0]) < self.exploration_rate)
-        funded = approved | explored
-
-        X = cohort["features"].to_numpy(dtype=float)
-        y = cohort["true_default"]
-        weights = np.where(explored, 1.0 / self.exploration_rate, 1.0)
-        model = model_pd.train_pd_model(
-            X[funded], y[funded], sample_weight=weights[funded], random_state=self.seed
-        )
-        scored = eval_default.score_pd_detection(model, cohort, self.policy_threshold, funded=funded)
-        return LeverMetrics.from_scored(scored), int(explored.sum()), int(y[explored].sum())
-
-    # ------------------------------------------------------------------ #
     # Run
     # ------------------------------------------------------------------ #
 
@@ -319,17 +285,37 @@ class SelectiveLabelsLoop:
             cohort = self._generate(severity, iteration)
             gt = cohort["ground_truth"]
 
-            naive = self._measure_naive(cohort)
-            reweight = retrain = explore = None
+            # One context per round; the train-cohort closure preserves the
+            # no-leakage disjoint-train discipline (same severity/iteration).
+            ctx = CorrectorContext(
+                seed=self.seed,
+                policy_threshold=self.policy_threshold,
+                severity=severity,
+                iteration=iteration,
+                exploration_rate=self.exploration_rate,
+                make_train_cohort=lambda s=severity, i=iteration: self._generate_train(s, i),
+            )
+
+            corrections: dict[str, LeverMetrics] = {}
+            outcomes: list = []  # preserves corrector list order for tie-breaking
+            for corrector in self.correctors:
+                outcome = corrector.apply(cohort, ctx)
+                corrections[corrector.name] = outcome.metrics
+                outcomes.append((corrector, outcome))
+
+            # Backward-compatible named projection of the corrections map.
+            naive = corrections["naive"]
+            reweight = corrections.get("reweight")
+            retrain = corrections.get("retrain")
+            explore = corrections.get("explore")
             train_seed = None
             n_explored = explored_defaults = 0
-
-            if self.improve_mode in ("reweight", "both"):
-                reweight = self._measure_reweight(cohort)
-            if self.improve_mode in ("retrain", "both"):
-                retrain, train_seed = self._measure_retrain(cohort, severity, iteration)
-            if self.exploration_rate > 0.0:
-                explore, n_explored, explored_defaults = self._measure_explore(cohort, iteration)
+            for corrector, outcome in outcomes:
+                if corrector.name == "retrain":
+                    train_seed = outcome.info["train_seed"]
+                elif corrector.name == "explore":
+                    n_explored = outcome.info["n_explored"]
+                    explored_defaults = outcome.info["explored_defaults"]
 
             # Observable-only diagnostics on the prior policy's selection — what a
             # real lender could monitor instead of the planted-truth ECE.
@@ -339,16 +325,14 @@ class SelectiveLabelsLoop:
                 random_state=self.seed,
             )
 
-            # Control keys on the primary lever: exploration (the only lever that
-            # buys identification) when active, else reweight (the SMB
-            # selection-bias correction), else retrain, else the naive baseline.
-            if explore is not None:
-                primary = explore
-            elif reweight is not None:
-                primary = reweight
-            else:
-                primary = retrain if retrain is not None else naive
-            control_metric = primary.declined_ece
+            # Control keys on the present corrector with the highest
+            # control_priority (ties -> first in the corrector list). This
+            # reproduces the legacy precedence explore>reweight>retrain>naive.
+            primary_corrector, primary_outcome = max(
+                enumerate(outcomes),
+                key=lambda io: (io[1][0].control_priority, -io[0]),
+            )[1]
+            control_metric = primary_outcome.metrics.declined_ece
             passed = control_metric <= self.target_declined_ece
 
             result.rounds.append(
@@ -368,6 +352,7 @@ class SelectiveLabelsLoop:
                     control_metric=control_metric,
                     passed=passed,
                     improve_mode=self.improve_mode,
+                    corrections=corrections,
                 )
             )
 
