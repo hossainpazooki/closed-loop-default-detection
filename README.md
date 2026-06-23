@@ -149,9 +149,10 @@ library other practitioners can adopt and contribute to. Status is explicit:
 - **[Shipped] A first-class fidelity report.** `cldd.fidelity.FidelityReport` gained
   SDMetrics-style `.get_score()` (0–1) and `.get_details()` (per-check DataFrame)
   accessors, so SCM-vs-real drift is drill-downable, not just a pass/fail bit.
-- **[Shipped] A runnable quickstart.** `examples/quickstart.py` runs generate →
-  measure → correct → frontier end-to-end on synthetic data and demos a custom lever.
-  *(Still planned: a hosted Sphinx/RTD API reference.)*
+- **[Shipped] Docs and a runnable quickstart.** `examples/quickstart.py` runs
+  generate → measure → correct → frontier end-to-end and demos a custom lever; the
+  Sphinx API reference under `docs/` builds clean under `sphinx-build -W` (Read the
+  Docs config in `.readthedocs.yaml`, enforced by a CI `docs` job) and is ready to host.
 - **[Planned] A reject-inference module.** Named methods (augmentation, parcelling,
   reclassification, twins, reweighting) graded against the harness's planted ground
   truth — filling a real gap, since no maintained Python reject-inference library
@@ -240,6 +241,13 @@ python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_2
 The fidelity gate needs the real `train.csv` (it is the *only* command that does); all other
 scripts and the whole test suite run on synthetic data alone.
 
+**Building the docs** (the Sphinx API reference; same strict mode Read the Docs uses):
+
+```bash
+pip install -e ".[docs]"
+sphinx-build -b html -W docs docs/_build/html   # -W: warnings are errors
+```
+
 ## Example usage / workflow
 
 **Typical flow:** install → run the loop → inspect the frontier → (optionally) certify the
@@ -311,6 +319,7 @@ contract. Other public entry points exported from `cldd` include
 │   ├── paired_significance.py    # paired test on the sweep → paired_significance.csv
 │   └── check_fidelity.py     # fidelity gate (exit non-zero on drift)
 ├── tests/                    # pytest suite (78 tests)
+├── docs/                     # Sphinx API reference (builds with sphinx-build -W; RTD-ready)
 ├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── artifacts/                # outputs: CSVs (some committed as evidence) + PNGs (gitignored)
 ├── CONTRIBUTING.md           # dev setup + how to add a correction lever

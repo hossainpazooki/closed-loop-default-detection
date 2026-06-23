@@ -25,6 +25,10 @@ dist/
 venv/
 env/
 
+# Docs build output (autosummary-generated stubs + rendered HTML)
+docs/_build/
+docs/generated/
+
 # Tooling caches
 .pytest_cache/
 .mypy_cache/

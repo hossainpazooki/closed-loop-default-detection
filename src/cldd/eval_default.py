@@ -48,7 +48,7 @@ class PdDetectionResult:
 
 
 def expected_calibration_error(y_true: np.ndarray, p: np.ndarray, n_bins: int = 10) -> float:
-    """Standard ECE: |accuracy - confidence| averaged over equal-width PD bins."""
+    """Standard ECE: mean over equal-width PD bins of ``|accuracy - confidence|``."""
     y_true = np.asarray(y_true, dtype=float)
     p = np.asarray(p, dtype=float)
     if len(p) == 0:
