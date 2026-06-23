@@ -41,24 +41,36 @@ is a real, defensible limit, not an artifact.
 
 ## Closed-loop mechanism
 
+**The core loop** — generate, measure on the declined rows, correct, and escalate
+severity until correction breaks:
+
+```mermaid
+flowchart TD
+    A["<b>1. Generate</b><br/>synthetic cohort at severity s<br/>plant true default, then hide it via the approval policy"]
+    B["<b>2. Measure</b><br/>train the PD model on approved rows only,<br/>score it against planted truth on the declined subpopulation"]
+    C["<b>3. Improve</b><br/>apply a correction lever:<br/>IPW reweight &middot; disjoint retrain &middot; exploration"]
+    D{"Corrected declined-cohort<br/>ECE &le; target?"}
+    E["<b>Operating frontier</b><br/>report the highest severity s<br/>that still passes"]
+
+    A --> B --> C --> D
+    D -->|"yes &mdash; escalate severity s"| A
+    D -->|"no &mdash; stop"| E
+```
+
+**Two mechanisms hang off that loop** — one observable without any declined-row
+label, one that simulates the deployment feedback dynamic:
+
 ```mermaid
 flowchart LR
-    A["Generate synthetic cohort<br/>(plant true default, hide via approval policy)"] --> B["PD model<br/>(trained on approved rows only)"]
-    B --> C["Predicted PD on the<br/>declined subpopulation"]
-    C --> D["Measure vs planted truth<br/>(declined-cohort ECE)"]
-    D --> E["Correction levers:<br/>IPW reweight / disjoint retrain / exploration"]
-    E --> F{"Declined ECE &lt;= target?"}
-    F -->|"yes: escalate severity"| A
-    F -->|"no: stop"| G["Report operating frontier<br/>(highest passing severity)"]
-
-    D --> M["Observable positivity diagnostics<br/>(no declined labels needed)"]
-
-    B -. "deployment dynamic, simulated by FeedbackLoop" .-> N["Model's own approvals<br/>label the next generation"]
-    N -.-> B
-
-    C --> I["Earlier scoring of applicants<br/>real data cannot observe"]
-    M --> K["Drift / regime visibility"]
-    G --> L["Honest, disclosable limit"]
+    subgraph diag["Observable diagnostics — no declined labels needed"]
+        direction TB
+        P["PD model + cohort<br/>(every round)"] --> Q["Positivity diagnostics<br/>propensity AUC &middot; IPW ESS &middot; clip-floor share"] --> R["Regime / drift alarm"]
+    end
+    subgraph fb["Model-in-the-loop — simulated by FeedbackLoop"]
+        direction TB
+        M["Deployed model approves<br/>the top-k safest applicants"] --> N["Their observed outcomes label<br/>the next generation's training data"]
+        N -. "next generation" .-> M
+    end
 ```
 
 **Why it is useful**
@@ -115,7 +127,36 @@ subpopulation that real data structurally cannot score.
 - **Observable positivity diagnostics** (`diagnostics.py`): a regime alarm computable
   *without any declined-row label*.
 - **Deterministic and reproducible:** all randomness flows through seeded
-  `numpy.random.Generator` streams; dependencies are version-pinned (see below).
+  `numpy.random.Generator` streams; dependencies are declared as ranges, with the
+  exact provenance pins kept in `requirements-dev.txt` and exercised in CI (see below).
+
+## Roadmap
+
+The harness is being developed from a single-author research harness toward a
+library other practitioners can adopt and contribute to. Status is explicit:
+**Shipped** is in the tree and tested; **Planned** is proposed, not yet built.
+
+- **[Shipped] Adoption baseline.** MIT `LICENSE`, CI (a `pinned-repro` full-suite
+  job plus a cross-version/OS `compat` matrix), `CITATION.cff` + BibTeX, and range
+  dependencies with the reproducibility pins preserved in `requirements-dev.txt`.
+- **[Planned] A pluggable correction interface.** Replace the `improve_mode` string
+  with a small `Corrector` protocol so that *adding a lever is adding a class*
+  (`SelectiveLabelsLoop(correctors=[...])`) — the way off-policy-evaluation libraries
+  register interchangeable estimators. This is the change that makes the loop
+  extensible by outside contributors.
+- **[Planned] A first-class fidelity report.** Promote the `fidelity.py` pass/fail
+  gate to a report object (`.get_score()` / `.get_details()`), the shape
+  synthetic-data tooling uses, so SCM-vs-real drift is drill-downable rather than a
+  single bit.
+- **[Planned] Docs and a runnable example.** A hosted API reference plus a quickstart
+  notebook that runs generate → measure → correct → frontier end-to-end on synthetic
+  data.
+- **[Planned] A reject-inference module.** Named methods (augmentation, parcelling,
+  reclassification, twins, reweighting) graded against the harness's planted ground
+  truth — filling a real gap, since no maintained Python reject-inference library
+  currently exists.
+
+See [`SESSION_HANDOFF.md`](SESSION_HANDOFF.md) for the architecture these build on.
 
 ## Setup and installation
 
