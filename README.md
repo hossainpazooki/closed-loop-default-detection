@@ -1,5 +1,8 @@
 # closed-loop-default-detection
 
+[![CI](https://github.com/hossainpazooki/closed-loop-default-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/hossainpazooki/closed-loop-default-detection/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A self-contained research harness that stress-tests **probability-of-default (PD)**
 modeling under **selective labels** — the central difficulty of the Intuit TechWeek SMB
 Underwriting Challenge — and reports the model's honest **operating frontier**.
@@ -124,14 +127,20 @@ python -m venv .venv
 pip install -e ".[dev]"           # editable install + pytest
 ```
 
-This installs the **version-pinned** stack from `pyproject.toml`:
-`numpy==2.4.6`, `pandas>=2.2`, `scikit-learn==1.9.0`, `scipy>=1.11`, `matplotlib>=3.8`
-(+ `pytest>=8.0`). `requirements-dev.txt` mirrors these pins for non-editable setups.
+This installs the library with **dependency ranges** from `pyproject.toml`
+(`numpy>=2.0`, `pandas>=2.2`, `scikit-learn>=1.6`, `scipy>=1.11`, `matplotlib>=3.8`,
+plus `pytest>=8.0` for `[dev]`), so the package sits alongside your own stack.
 
-> **Why pins?** `HistGradientBoosting` float output shifts across scikit-learn releases.
-> The committed numbers and the frozen byte-identity test were captured under
-> **scikit-learn 1.9.0 / numpy 2.4.6** (Python 3.14.2); other versions move the last
-> decimals and make 3 environment-sensitive tests differ. See [Troubleshooting](#troubleshooting).
+> **Ranges for adopters, pins for provenance.** `HistGradientBoosting` float output
+> shifts across scikit-learn releases, so the committed numbers and the frozen
+> byte-identity test were captured under a **pinned** environment —
+> **scikit-learn 1.9.0 / numpy 2.4.6** (Python 3.14.2), recorded in
+> `requirements-dev.txt`. To reproduce those exact figures, install from that file
+> (`pip install -r requirements-dev.txt && pip install -e . --no-deps`); the CI
+> `pinned-repro` job does this and runs the full suite. A handful of float-exact
+> tests are marked `pinned` and are reproducible **only** under those pins — the CI
+> `compat` matrix (other Python/sklearn versions) deselects them with
+> `-m "not pinned"`. See [Troubleshooting](#troubleshooting).
 
 ## How to run locally
 
@@ -166,8 +175,14 @@ so flat artifacts are never overwritten).
 
 ```bash
 pytest                          # full suite — expect 66 passed (pinned environment)
+pytest -m "not pinned"          # 63 tests — what the CI compat matrix runs off-pins
 pytest tests/test_loop.py       # a single module
 ```
+
+The three `pinned`-marked tests assert exact/tight floating-point output of the
+calibrated PD model and pass only under the `requirements-dev.txt` pins; on any
+other scikit-learn/numpy the last decimals move. CI runs them in the `pinned-repro`
+job and skips them in the cross-version `compat` matrix.
 
 Two project-specific "validation" gates beyond the unit tests:
 
@@ -329,6 +344,24 @@ committed.
   `--quick` for a seed-42 smoke run.
 - **No plot window appears.** Scripts use the headless `Agg` matplotlib backend and write PNGs
   to `artifacts/`; there is nothing to display interactively.
+
+## Citation
+
+If you use this harness, please cite it. Metadata lives in
+[`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" reads it); the
+equivalent BibTeX is:
+
+```bibtex
+@software{pazooki_cldd_2026,
+  author  = {Pazooki, Hossain},
+  title   = {{closed-loop-default-detection}: measuring selective-labels default
+             detection and the PD model's operating frontier},
+  year    = {2026},
+  version = {0.1.0},
+  license = {MIT},
+  url     = {https://github.com/hossainpazooki/closed-loop-default-detection}
+}
+```
 
 ---
 

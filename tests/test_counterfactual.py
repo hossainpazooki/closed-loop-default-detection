@@ -26,6 +26,7 @@ is asserted only in the (weaker) direction actually observed.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from cldd.counterfactual import (
     CounterfactualResult,
@@ -205,6 +206,7 @@ def test_gcomp_beats_naive_on_propagation_at_moderate_severity():
     assert res.gcomp_mae_strong_propagation < res.naive_mae_strong_propagation
 
 
+@pytest.mark.pinned
 def test_gcomp_propagation_win_robust_across_seeds_moderate_severity():
     """The strong-propagation g-comp win is uniformly positive across seeds.
 

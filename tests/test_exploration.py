@@ -62,6 +62,7 @@ def test_explore_lever_deterministic_and_documented_stream():
     assert int(explored.sum()) == ra.n_explored
 
 
+@pytest.mark.pinned
 def test_exploration_holds_calibration_beyond_the_ipw_frontier():
     """THE lesson-driven property: at severity 0.6 — past the certified frontier,
     where the unobserved confounder defeats fitted-propensity IPW — exact-weight

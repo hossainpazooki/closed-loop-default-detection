@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pinned-repro:
+    # Authoritative gate. Reproduces the committed numbers and the frozen
+    # byte-identity baseline under the exact provenance environment
+    # (scikit-learn 1.9.0 / numpy 2.4.6, Python 3.14). Runs the FULL suite,
+    # including the float-exact tests marked `pinned`.
+    name: pinned-repro (full suite, pinned deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install pinned provenance environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e . --no-deps
+      - name: Full test suite (expect 66/66)
+        run: pytest
+
+  compat:
+    # Portability gate. Proves the package installs and broadly works across
+    # supported Python versions and OSes with UNPINNED (range) dependencies.
+    # The float-exact tests are deselected with `-m "not pinned"` because
+    # HistGradientBoosting output shifts across scikit-learn releases by design;
+    # exact-number reproduction is the pinned-repro job's responsibility.
+    name: compat (ranges) py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install with range dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Test suite (excluding pinned float-exact tests)
+        run: pytest -m "not pinned"

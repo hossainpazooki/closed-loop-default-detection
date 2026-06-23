@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "closed-loop-default-detection"
+abstract: >-
+  A deterministic synthetic harness that stress-tests probability-of-default
+  (PD) modeling under selective labels, applies correction levers (IPW reweight,
+  disjoint-cohort retrain, exploration), and reports the model's honest operating
+  frontier on the declined subpopulation real data cannot observe.
+type: software
+authors:
+  - family-names: Pazooki
+    given-names: Hossain
+    email: hossain@pazooki.com
+version: 0.1.0
+date-released: 2026-06-23
+license: MIT
+repository-code: "https://github.com/hossainpazooki/closed-loop-default-detection"
+url: "https://github.com/hossainpazooki/closed-loop-default-detection"
+keywords:
+  - selective-labels
+  - probability-of-default
+  - reject-inference
+  - causal-inference
+  - calibration
+  - synthetic-data
+  - off-policy-evaluation

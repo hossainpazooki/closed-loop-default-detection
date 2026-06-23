@@ -1,21 +1,45 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "closed-loop-default-detection"
 version = "0.1.0"
 description = "CLUE-style closed loop that measures selective-labels default detection on synthetic SMB lending cohorts and finds the PD model's operating frontier."
+readme = "README.md"
 requires-python = ">=3.10"
-# HistGradientBoosting float output shifts across scikit-learn releases, so the
-# version is pinned to the one the committed artifacts (seed_sweep_25.csv,
-# severity_curve.csv) and the frozen byte-identity baseline were captured under
-# (1.9.0). The sibling hackathon repo pins scikit-learn==1.8.0 for its own
-# submission artifacts; that difference is intentional, not a mistake.
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Hossain Pazooki", email = "hossain@pazooki.com" }]
+keywords = [
+    "selective-labels",
+    "probability-of-default",
+    "reject-inference",
+    "causal-inference",
+    "calibration",
+    "synthetic-data",
+    "off-policy-evaluation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+# Library dependencies are declared as ranges so the package installs alongside
+# a practitioner's own stack. The EXACT provenance pins under which the committed
+# artifacts and the frozen byte-identity baseline were captured
+# (scikit-learn 1.9.0 / numpy 2.4.6, Python 3.14.2) live in requirements-dev.txt
+# and are exercised by the CI `pinned-repro` job. HistGradientBoosting float
+# output shifts across scikit-learn releases, so a handful of float-exact tests
+# (marked `pinned`) are reproducible only under those pins.
 dependencies = [
-    "numpy==2.4.6",
+    "numpy>=2.0",
     "pandas>=2.2",
-    "scikit-learn==1.9.0",
+    "scikit-learn>=1.6",
     "scipy>=1.11",
     "matplotlib>=3.8",
 ]
@@ -23,9 +47,17 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
+[project.urls]
+Homepage = "https://github.com/hossainpazooki/closed-loop-default-detection"
+Repository = "https://github.com/hossainpazooki/closed-loop-default-detection"
+Issues = "https://github.com/hossainpazooki/closed-loop-default-detection/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "pinned: asserts exact or tight floating-point output of the calibrated PD model; reproducible only under the pinned scikit-learn/numpy in requirements-dev.txt. The CI compat matrix deselects these with `-m 'not pinned'`.",
+]
