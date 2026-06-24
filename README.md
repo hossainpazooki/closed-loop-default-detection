@@ -203,8 +203,8 @@ python scripts/paired_significance.py
 ## Tests, validation, and docs
 
 ```bash
-pytest                          # full suite — expect 79 passed (pinned environment)
-pytest -m "not pinned"          # 75 tests — what the CI compat matrix runs off-pins
+pytest                          # full suite — expect 90 passed (pinned environment)
+pytest -m "not pinned"          # 85 tests — what the CI compat matrix runs off-pins
 ```
 
 Two project-specific validation gates beyond the unit tests:
@@ -241,7 +241,7 @@ reproduce those exact figures:
 pip install -r requirements-dev.txt && pip install -e . --no-deps
 ```
 
-The **four** float-exact tests are marked `pinned` and reproduce **only** under those pins; the
+The **five** float-exact tests are marked `pinned` and reproduce **only** under those pins; the
 CI `compat` matrix deselects them with `-m "not pinned"`. The library deps stay as ranges so a
 plain `pip install` works alongside your own sklearn.
 
@@ -298,7 +298,7 @@ the figures quoted in `FABLE.md` are recomputable from source. PNGs are not comm
 │   ├── fidelity.py           # fidelity gate + FidelityReport (.get_score / .get_details)
 │   └── counterfactual.py     # counterfactual query set + estimator grading
 ├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
-├── tests/                    # pytest suite (79 tests; 4 marked `pinned`)
+├── tests/                    # pytest suite (90 tests; 5 marked `pinned`)
 ├── docs/                     # Sphinx API reference (builds with sphinx-build -W; RTD-ready)
 ├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── CONTRIBUTING.md           # dev setup + how to add a correction lever
@@ -331,9 +331,15 @@ tested; **Planned** is proposed, not yet built.
   `.readthedocs.yaml`, enforced by the CI `docs` job) and is ready to host.
 - **[Planned] PyPI release.** Publish `closed-loop-default-detection` so `pip install` works
   without a clone.
-- **[Planned] A reject-inference module.** Named methods (augmentation, parcelling,
-  reclassification, twins, reweighting) graded against the harness's planted ground truth —
-  filling a real gap, since no maintained Python reject-inference library currently exists.
+- **[Shipped] A reject-inference module.** Four classic methods (reclassification,
+  score-band augmentation, fuzzy augmentation, parcelling) in `cldd.reject_inference`, as
+  `Corrector`s **graded against planted truth on a held-out declined fold** — not a
+  run-on-your-data API (that would remove the oracle). `scripts/run_reject_inference.py`
+  writes `artifacts/reject_inference_frontier.csv`. The honest result: RI lift over the naive
+  detector is modest at best and can be negative, and as severity rises the unobserved
+  confounder defeats every observational method — matching Kozodoi et al. (2025), who find
+  correcting the *evaluation* bias matters more than the imputation. See
+  [`docs/reject_inference.md`](docs/reject_inference.md).
 
 ## Development notes
 
@@ -356,7 +362,7 @@ tested; **Planned** is proposed, not yet built.
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
   exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
   the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the suite is 79/79. See `FABLE.md` §8.
+  numpy 2.4.6** the suite is 90/90. See `FABLE.md` §8.
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
 - **`check_fidelity.py` exits 1 with "data not found".** The default `DEFAULT_DATA_DIR` is a

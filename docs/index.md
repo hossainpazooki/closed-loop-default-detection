@@ -15,6 +15,7 @@ assessment, and how to run the drivers, see the project
 
 quickstart
 api
+reject_inference
 ```
 
 ## Install
