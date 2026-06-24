@@ -11,6 +11,7 @@ artifacts/*
 !artifacts/run_sweep_25_driver.py
 !artifacts/exploration_frontier.csv
 !artifacts/feedback_generations.csv
+!artifacts/reject_inference_frontier.csv
 
 # Python
 __pycache__/

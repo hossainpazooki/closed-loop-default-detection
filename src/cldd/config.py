@@ -78,3 +78,17 @@ DIAG_UNFUNDED_BELOW_FLOOR_MAX = 0.01
 # collide with (or shift) a generator's PCG64 stream or another lever's draw.
 EXPLORE_STREAM_LOOP = 7919
 EXPLORE_STREAM_FEEDBACK = 104729
+
+# --------------------------------------------------------------------------- #
+# Reject-inference correctors (cldd.reject_inference)
+# --------------------------------------------------------------------------- #
+# RI levers are graded against planted truth on a HELD-OUT fold of the declined
+# population (the "recovery of this declined population's labels" claim). The
+# pseudo-label fold and the parcelling label draw get dedicated RNG stream tags,
+# same discipline as the exploration lever, so they can never shift a generator's
+# PCG64 stream or another lever's draw.
+RI_EVAL_FRACTION = 0.5        # fraction of declines held out for grading
+RI_SCORE_BANDS = 10           # quantile score bands for augmentation / parcelling
+RI_PARCEL_FACTOR = 1.5        # parcelling: bad-rate uplift over the accepted band rate
+RI_SPLIT_STREAM = 15485863    # declined train/eval split
+RI_PARCEL_STREAM = 32452843   # parcelling pseudo-label draw

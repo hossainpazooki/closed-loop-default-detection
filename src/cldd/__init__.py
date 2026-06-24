@@ -22,6 +22,13 @@ from .counterfactual import (
     run_counterfactual_eval,
 )
 from .diagnostics import PositivityDiagnostics, positivity_diagnostics
+from .reject_inference import (
+    AugmentationCorrector,
+    FuzzyAugmentationCorrector,
+    ParcellingCorrector,
+    ReclassificationCorrector,
+    RejectInferenceCorrector,
+)
 from .eval_default import PdDetectionResult, fit_observed_model, score_pd_detection
 from .feedback import FeedbackLoop, FeedbackResult, GenerationResult
 from .loop import LeverMetrics, LoopResult, RoundResult, SelectiveLabelsLoop
@@ -58,6 +65,11 @@ __all__ = [
     "IPWReweightCorrector",
     "DisjointRetrainCorrector",
     "ExplorationCorrector",
+    "RejectInferenceCorrector",
+    "ReclassificationCorrector",
+    "AugmentationCorrector",
+    "FuzzyAugmentationCorrector",
+    "ParcellingCorrector",
     "FeedbackLoop",
     "FeedbackResult",
     "GenerationResult",

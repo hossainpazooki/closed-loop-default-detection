@@ -21,6 +21,14 @@ Correction levers
    :undoc-members:
    :show-inheritance:
 
+Reject-inference levers
+-----------------------
+
+.. automodule:: cldd.reject_inference
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Measurement
 -----------
 
