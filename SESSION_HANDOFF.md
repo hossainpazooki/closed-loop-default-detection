@@ -13,6 +13,26 @@ Local: `C:\Users\hossa\dev\closed-loop-default-detection`. Python venv at
 
 ---
 
+## 0. Stale-number flags from an external verification pass (2026-06-26)
+
+> A read-only pass re-ran `pytest` and recomputed against `artifacts/*.csv`. **The code is
+> fine** — 90/90 green, byte-determinism holds. These are *doc-staleness* fixes for a future
+> session; nothing here needs a code change:
+>
+> - **Test count:** the suite is **90 passed**, not 66. §2 layout note (~L65), §6 (~L159),
+>   and §7 (~L183) still say 66; the README is already correct at 90.
+> - **§7 g-computation numbers don't reproduce.** The figures attributed to *"Measured (seed
+>   42)"* — `0.0734 → 0.0598 (+0.0135)` at sev 0.4 and `+0.0038` at sev 1.0 — match no
+>   artifact. Raw `seed_sweep_25.csv` seed-42 is `0.0714 → 0.0635 (+0.0079)` and `+0.0017`.
+>   The `+0.0135` is the **25-seed cross-seed mean** (`paired_significance.csv` mean 0.013371)
+>   mislabeled as one seed; `+0.0038` is unsupported (true seed-42 ≈ `+0.0017`). Fix: relabel
+>   as the cross-seed mean, or restate the real seed-42 values.
+> - **§6 counterfactual MAE (0.093 / 0.11)** look pre-§7-fix; a live run gives naive ≈ 0.096
+>   and propagation-slice ≈ 0.092 (the 0.11 matches the *intervenable* slice, 0.112).
+> - **Not re-verified:** the fidelity gate (needs the real `train.csv`, absent here).
+
+---
+
 ## 1. Why this exists
 
 In real lending data you only observe repayment outcomes for loans the prior
