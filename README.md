@@ -204,8 +204,9 @@ python scripts/paired_significance.py
 ## Tests, validation, and docs
 
 ```bash
-pytest                          # full suite — expect 90 passed (pinned environment)
-pytest -m "not pinned"          # 85 tests — what the CI compat matrix runs off-pins
+pytest                          # full suite (run under the pinned environment for the float-exact tests)
+pytest -m "not pinned"          # the subset the CI compat matrix runs off-pins
+pytest --cov=cldd --cov-report=term-missing   # coverage of the public (synthetic-only) suite
 ```
 
 Two project-specific validation gates beyond the unit tests:
@@ -230,6 +231,11 @@ The real Intuit dataset is **private and not shipped**. Point the gate at your o
 `--data-dir` flag; with the data absent it raises a clear error naming `CLDD_DATA_DIR` (it is
 **not** runnable on the synthetic-only quickstart). This is the **only** command that needs the
 real `train.csv`; everything else, including the whole test suite, runs on synthetic data alone.
+
+Because that dataset is private and absent on public CI, the fidelity gate's real-data path is
+never exercised there — so **coverage of `cldd/fidelity.py`'s data-loading branch is low on CI by
+design, not an oversight.** The `coverage (public suite)` CI job and the local `pytest --cov=cldd`
+command both measure only the synthetic-only suite.
 
 **Build the docs** (the Sphinx API reference; same strict mode Read the Docs uses):
 

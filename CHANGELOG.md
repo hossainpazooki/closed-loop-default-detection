@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to `closed-loop-default-detection` (import name `cldd`) are
+recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
+initial **alpha**; it is not yet published to PyPI (install from source).
+
+## [0.1.0] — unreleased (alpha)
+
+Initial alpha of the selective-labels default-detection harness.
+
+### Added
+- **Closed loop** (`SelectiveLabelsLoop`): the generate → measure → improve → regenerate
+  cycle that escalates selection severity to find a PD model's operating frontier.
+- **Pluggable correction levers** (`Corrector` ABC): naive, IPW reweight, disjoint
+  retrain, and exploration, plus the reject-inference correctors.
+- **Two synthetic worlds**: the flat `SyntheticBorrowerGenerator` and the fitted, layered
+  `StructuralBorrowerGenerator` (SCM).
+- **Marginal-fidelity gate** (`cldd.fidelity`): compares SCM cohorts against real-data
+  *univariate marginals*.
+- **Counterfactual validator**: a deployable g-computation estimator vs. naive conditioning.
+- **Feedback / exploration** simulation and observable positivity diagnostics.
+- Top-level export of the calibrated PD detector, `CalibratedPDModel`.
+- Packaging hygiene: `cldd.__version__`, a PEP 561 `py.typed` marker, and coverage
+  tooling (`pytest --cov=cldd`).
+- Dedicated regression tests for `model_pd.py` and `eval_default.py`.
+
+### Changed
+- Fidelity gate output and docs relabeled **MARGINAL** so "fidelity PASSED" no longer
+  reads as joint/causal fidelity.
+- `DEFAULT_DATA_DIR` is now overridable via the `CLDD_DATA_DIR` environment variable; the
+  private dataset is not shipped, and an absent dataset raises a clear, actionable error.
+- Development-status classifier: Beta → **Alpha**.
+
+### Fixed
+- CI float-determinism: a version-sensitive exploration test is marked `pinned`, and the
+  frozen-value asserts compare with a tolerance (pinning dependency *versions* does not pin
+  the BLAS/CPU, so HistGradientBoosting output can drift by ~1 ULP across machines).
+- The strict Sphinx (`-W`) docs build no longer breaks on the internal findings doc.
+
+### Notes / known limitations
+- The real-data fidelity gate needs a **private** dataset and therefore **does not run on
+  public CI**; coverage of `cldd/fidelity.py`'s data-loading path is correspondingly low on
+  CI by design. See the README "Tests, validation, and docs" section.
+- scikit-learn-estimator API compatibility (`BaseEstimator` / `check_estimator`) is an
+  explicit non-goal: the estimators are loop-internal, not intended as drop-in sklearn
+  components.

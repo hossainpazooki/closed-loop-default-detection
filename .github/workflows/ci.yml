@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
           pip install -e . --no-deps
-      - name: Full test suite (expect 66/66)
+      - name: Full test suite (pinned deps, includes float-exact tests)
         run: pytest
 
   compat:
@@ -51,6 +51,25 @@ jobs:
           pip install -e ".[dev]"
       - name: Test suite (excluding pinned float-exact tests)
         run: pytest -m "not pinned"
+
+  coverage:
+    # Coverage of the PUBLIC (synthetic-only) test suite. The private-data fidelity
+    # gate cannot run here (no dataset on CI), so cldd/fidelity.py's data-loading path
+    # is intentionally uncovered — this is documented, not an oversight. Pinned
+    # float-exact tests are deselected, matching the compat philosophy.
+    name: coverage (public suite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install with dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Coverage (excluding pinned float-exact tests)
+        run: pytest -m "not pinned" --cov=cldd --cov-report=term-missing
 
   docs:
     # Documentation gate. Builds the Sphinx API reference with warnings-as-errors,

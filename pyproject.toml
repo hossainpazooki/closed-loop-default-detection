@@ -21,7 +21,7 @@ keywords = [
     "off-policy-evaluation",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Financial and Insurance Industry",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "pytest-cov>=5"]
 docs = ["sphinx>=7", "furo", "myst-parser>=2"]
 
 [project.urls]
@@ -56,9 +56,29 @@ Issues = "https://github.com/hossainpazooki/closed-loop-default-detection/issues
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Ship the PEP 561 typing marker so downstream type-checkers honor cldd's hints.
+[tool.setuptools.package-data]
+cldd = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
 markers = [
     "pinned: asserts exact or tight floating-point output of the calibrated PD model; reproducible only under the pinned scikit-learn/numpy in requirements-dev.txt. The CI compat matrix deselects these with `-m 'not pinned'`.",
+]
+
+# Coverage is opt-in (run `pytest --cov=cldd`); it is not wired into addopts so a
+# plain `pytest` stays lightweight. The private-data fidelity path (cldd/fidelity.py)
+# is only exercised when the real dataset is present, so its data-loading branch is
+# expected to be uncovered on public CI by design — see README.
+[tool.coverage.run]
+source = ["cldd"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
 ]

@@ -6,6 +6,13 @@ generate (``synthetic``) -> measure (``eval_default``) -> improve/frontier
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:  # pyproject `version` is the single source of truth (read from installed metadata)
+    __version__ = _pkg_version("closed-loop-default-detection")
+except PackageNotFoundError:  # running from a source tree with no install
+    __version__ = "0.1.0"
+
 from .correctors import (
     CorrectionOutcome,
     Corrector,
@@ -30,6 +37,7 @@ from .reject_inference import (
     RejectInferenceCorrector,
 )
 from .eval_default import PdDetectionResult, fit_observed_model, score_pd_detection
+from .model_pd import CalibratedPDModel
 from .feedback import FeedbackLoop, FeedbackResult, GenerationResult
 from .loop import LeverMetrics, LoopResult, RoundResult, SelectiveLabelsLoop
 from .scm import (
@@ -45,6 +53,7 @@ from .scm import (
 from .synthetic import SyntheticBorrowerGenerator
 
 __all__ = [
+    "__version__",
     "SyntheticBorrowerGenerator",
     "StructuralBorrowerGenerator",
     "SCMState",
@@ -78,6 +87,7 @@ __all__ = [
     "PdDetectionResult",
     "fit_observed_model",
     "score_pd_detection",
+    "CalibratedPDModel",
     "CounterfactualResult",
     "GComputationEstimator",
     "run_counterfactual_eval",

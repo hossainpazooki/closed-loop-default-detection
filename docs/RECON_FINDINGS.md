@@ -71,12 +71,12 @@ floats) or direction-only (scientific effects), and the suite now classifies eac
 
 | Item | Severity | Status | Action |
 |------|----------|--------|--------|
-| CI never runs the fidelity gate (real data can't exist on Linux/macOS runners) | major | [OPEN] | Gate real data in CI via a fixture or synthetic fixture path; treat green-only-locally as a known gap. |
-| "90 passed / 0 skipped" is machine-specific; `tests/test_fidelity.py` skips data-backed tests when dataset absent | major | [OPEN] | Report the skip-aware count in CI; stop quoting the local all-pass number as universal. |
-| No coverage tooling; `model_pd.py` (detector) and `eval_default.py` (measure stage) have no dedicated tests | major | [OPEN] | Add coverage tooling and dedicated test files for both modules. |
-| `Development Status :: 4 - Beta` on an unreleased, untagged, not-on-PyPI 0.1.0 | minor | [OPEN] | Change classifier to `3 - Alpha`. |
-| No CHANGELOG; `cldd.__version__` not exposed; `CalibratedPDModel` not in `__all__`; no `py.typed` despite `Typing :: Typed` | minor | [OPEN] | Add CHANGELOG, expose `__version__`, add the detector to `__all__`, ship `py.typed`. |
-| `Development Status` build/install baseline | — | [BUILD-OK] | Clean PEP 517 wheel builds (`pip wheel .` -> 0.1.0, all 13 modules); public repo clone + `pip install -e .` works; `examples/quickstart.py` runs to completion (exit 0). No action. |
+| No coverage tooling; `model_pd.py` (detector) and `eval_default.py` (measure stage) have no dedicated tests | major | [DONE] | Added `pytest-cov` config + a `coverage (public suite)` CI job; added `tests/test_model_pd.py` and `tests/test_eval_default.py` (behavioral, not `pinned`). |
+| `Development Status :: 4 - Beta` on an unreleased, untagged, not-on-PyPI 0.1.0 | minor | [DONE] | Classifier changed to `3 - Alpha`. |
+| No CHANGELOG; `cldd.__version__` not exposed; `CalibratedPDModel` not in `__all__`; no `py.typed` despite `Typing :: Typed` | minor | [DONE] | Added `CHANGELOG.md`; `__version__` via `importlib.metadata` (pyproject is the single source of truth); exported `CalibratedPDModel`; shipped `py.typed` via package-data. |
+| CI never runs the fidelity gate (private real data can't exist on runners) | major | [DOCUMENTED] | Accepted limitation, not faked: README + CHANGELOG + the coverage job comment state that `fidelity.py`'s data path is uncovered on CI by design. |
+| "all passed" count is machine-specific; `tests/test_fidelity.py` skips data-backed tests when dataset absent | minor | [DOCUMENTED] | De-hardcoded the test counts in README/CI so the local all-pass number is no longer quoted as universal. |
+| Build/install baseline | — | [BUILD-OK] | Clean PEP 517 wheel builds; public repo clone + `pip install -e .` works; `examples/quickstart.py` runs to completion (exit 0). No action. |
 
 ## Explicit non-goal
 
