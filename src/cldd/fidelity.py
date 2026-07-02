@@ -28,12 +28,19 @@ absolute) but, because the SCM categoricals are exogenous draws calibrated to th
 real level probabilities, they default to *informational* unless you flip
 ``strict_categoricals=True``.
 
+**Scope (what this does NOT check):** every check here is a *univariate marginal*
+comparison. The gate does **not** test the joint distribution, feature
+correlations, or the causal/DAG structure of the SCM -- a synthetic cohort can
+match every marginal above and still get the joint wrong. Read "MARGINAL FIDELITY
+PASSED" as "the modeled marginals match," not "the generator is faithful in full."
+
 Nothing here mutates the generator or touches other modules; import via
 ``cldd.fidelity`` (the package ``__init__`` is intentionally left alone).
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -46,11 +53,19 @@ from .scm import StructuralBorrowerGenerator
 # Configuration
 # --------------------------------------------------------------------------- #
 
-#: Default location of the real Intuit dataset (configurable via ``data_dir``).
-DEFAULT_DATA_DIR = Path(
+#: Historical author-machine dataset location, kept only as a last-resort fallback
+#: so the maintainer's local ``check_fidelity`` run needs no configuration.
+_FALLBACK_DATA_DIR = Path(
     "C:/Users/hossa/dev/intuit-techweek-hackathon/"
     "intuit-techweek-nyc-hackathon-2026/dataset"
 )
+
+#: Default location of the real Intuit dataset. The dataset is **private and not
+#: shipped with the package**, so the fidelity gate is runnable only where that
+#: data is available. Point the gate at your copy with the ``CLDD_DATA_DIR``
+#: environment variable (the portable knob) or by passing ``data_dir=`` explicitly;
+#: absent both, this falls back to the maintainer's historical path.
+DEFAULT_DATA_DIR = Path(os.environ.get("CLDD_DATA_DIR", _FALLBACK_DATA_DIR))
 
 #: Continuous features compared on p1/p50/p99 (modeled in the SCM marginals).
 CONTINUOUS_FEATURES = (
@@ -146,8 +161,10 @@ class FidelityReport:
     def to_table(self) -> str:
         """Human-readable fixed-width table of every check."""
         header = (
-            f"FIDELITY REPORT  (real labeled n={self.real_n_labeled:,}, "
+            f"MARGINAL FIDELITY REPORT  (real labeled n={self.real_n_labeled:,}, "
             f"synthetic n={self.synth_n:,})\n"
+            f"scope: univariate marginals only -- does NOT check the joint/causal "
+            f"distribution\n"
             f"data_dir: {self.data_dir}\n"
         )
         cols = ("check", "real", "synth", "diff", "tol", "verdict")
@@ -239,7 +256,11 @@ def load_real(data_dir: str | Path = DEFAULT_DATA_DIR, split: str = "train") -> 
     """
     path = Path(data_dir) / f"{split}.csv"
     if not path.exists():
-        raise FileNotFoundError(f"real dataset not found: {path}")
+        raise FileNotFoundError(
+            f"real Intuit dataset not found: {path}. The dataset is private and is "
+            f"not shipped with cldd; set the CLDD_DATA_DIR environment variable (or "
+            f"pass data_dir=) to the directory containing {split}.csv."
+        )
     return pd.read_csv(path)
 
 
@@ -399,7 +420,7 @@ def run_fidelity_gate(
     strict_categoricals: bool = False,
     **generator_kwargs,
 ) -> FidelityReport:
-    """Load real data + build a cohort + compute the full fidelity report."""
+    """Load real data + build a cohort + compute the complete marginal-fidelity report."""
     real = load_real(data_dir, split=split)
     cohort = load_synthetic(
         n_applicants=n_applicants, seed=seed, generator=generator, **generator_kwargs

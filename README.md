@@ -87,7 +87,7 @@ which lives in `cldd.fidelity`). Full reference: the Sphinx docs under [`docs/`]
 | `FeedbackLoop`, `FeedbackResult`, `GenerationResult` | model-in-the-loop selective-labels simulation |
 | `positivity_diagnostics`, `PositivityDiagnostics` | observable regime / drift alarm (needs **no** declined-row labels) |
 | `fit_observed_model`, `score_pd_detection` | the measure-stage building blocks (train-on-approved / score-on-truth) |
-| `from cldd.fidelity import run_fidelity_gate, FidelityReport` | SCM-vs-real fidelity report with `.get_score()` (0–1) and `.get_details()` (DataFrame) |
+| `from cldd.fidelity import run_fidelity_gate, FidelityReport` | SCM-vs-real **marginal**-fidelity report with `.get_score()` (0–1) and `.get_details()` (DataFrame) — checks univariate marginals only, not the joint/causal structure |
 
 ### Extending: add a correction lever
 
@@ -164,7 +164,8 @@ flowchart LR
   correction levers and re-measures; `FeedbackLoop` additionally simulates the deployment
   dynamic where the model's own approvals shape the next generation's training labels.
 - **Drift and performance visibility.** Observable positivity diagnostics fire *without any
-  declined-row label*, and the fidelity gate guards the synthetic world against real-data drift.
+  declined-row label*, and the marginal-fidelity gate guards the synthetic world's univariate
+  marginals against real-data drift.
 - **A clear, checked feedback path.** Every correction is graded against planted ground truth,
   so the loop reports a defensible **operating frontier** instead of an unverifiable score.
 
@@ -210,15 +211,25 @@ pytest -m "not pinned"          # 85 tests — what the CI compat matrix runs of
 Two project-specific validation gates beyond the unit tests:
 
 ```bash
-# Fidelity gate — SCM cohort vs real-data marginals; exit 0 = pass, 1 = fail/data-missing
-python scripts/check_fidelity.py --data-dir /path/to/dataset
+# Marginal-fidelity gate — SCM cohort vs real-data marginals; exit 0 = pass, 1 = fail/data-missing
+CLDD_DATA_DIR=/path/to/dataset python scripts/check_fidelity.py
+python scripts/check_fidelity.py --data-dir /path/to/dataset   # equivalent, explicit flag
 
 # Reproduce the headline statistic from committed evidence
 python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_25.csv
 ```
 
-The fidelity gate is the **only** command that needs the real `train.csv`; everything else,
-including the whole test suite, runs on synthetic data alone.
+This gate validates **univariate marginals only** — base rate, feed rate, missingness,
+per-feature p1/p50/p99, and categorical top-frequencies — so "fidelity PASSED" means *the
+modeled marginals match the real data*, **not** that the generator is faithful in the
+joint/causal distribution.
+
+The real Intuit dataset is **private and not shipped**. Point the gate at your own copy
+(a directory containing `train.csv`) via the portable `CLDD_DATA_DIR` environment variable
+— e.g. `CLDD_DATA_DIR=/path/to/dataset python scripts/check_fidelity.py` — or the equivalent
+`--data-dir` flag; with the data absent it raises a clear error naming `CLDD_DATA_DIR` (it is
+**not** runnable on the synthetic-only quickstart). This is the **only** command that needs the
+real `train.csv`; everything else, including the whole test suite, runs on synthetic data alone.
 
 **Build the docs** (the Sphinx API reference; same strict mode Read the Docs uses):
 
@@ -247,8 +258,9 @@ plain `pip install` works alongside your own sklearn.
 
 ## Configuration
 
-**There are no environment variables.** Configuration is code-level and explicit; per-run
-options are CLI flags on the drivers. `src/cldd/config.py` is the single source of truth:
+**The only environment variable is `CLDD_DATA_DIR`** (the marginal-fidelity gate's real-data
+location — see below). Everything else is code-level and explicit; per-run options are CLI
+flags on the drivers. `src/cldd/config.py` is the single source of truth:
 
 | Constant | Default | Meaning |
 |---|---|---|
@@ -261,9 +273,11 @@ options are CLI flags on the drivers. `src/cldd/config.py` is the single source 
 | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
 | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
 
-The fidelity gate's real-data location is `cldd.fidelity.DEFAULT_DATA_DIR`, which currently
-points at a machine-specific absolute path. **On any other machine pass `--data-dir
-/path/to/dataset`** (a directory containing `train.csv`). *(TODO: make this default portable.)*
+The marginal-fidelity gate's real-data location is portable: set the **`CLDD_DATA_DIR`**
+environment variable to a directory containing `train.csv` (e.g. `CLDD_DATA_DIR=/path/to/dataset
+python scripts/check_fidelity.py`), or pass the equivalent `--data-dir /path/to/dataset` flag.
+The real Intuit dataset is private and not shipped, so with the data absent the gate raises a
+clear error naming `CLDD_DATA_DIR` rather than falling back to a machine-specific path.
 
 ## Outputs
 
@@ -322,9 +336,11 @@ tested; **Planned** is proposed, not yet built.
   (`SelectiveLabelsLoop(correctors=[...])`), the way off-policy-evaluation libraries register
   interchangeable estimators. The legacy `improve_mode` / `exploration_rate` API is byte-
   identical, and `RoundResult.corrections` exposes the general name→metrics map.
-- **[Shipped] A first-class fidelity report.** `cldd.fidelity.FidelityReport` gained
+- **[Shipped] A first-class marginal-fidelity report.** `cldd.fidelity.FidelityReport` gained
   SDMetrics-style `.get_score()` (0–1) and `.get_details()` (per-check DataFrame) accessors, so
-  SCM-vs-real drift is drill-downable, not just a pass/fail bit.
+  SCM-vs-real drift is drill-downable, not just a pass/fail bit — scoped to univariate marginals
+  (base rate, feed rate, missingness, per-feature quantiles, categorical top-frequencies), not
+  the joint/causal distribution.
 - **[Shipped] Docs and a runnable quickstart.** [`examples/quickstart.py`](examples/quickstart.py)
   runs generate → measure → correct → frontier end-to-end and demos a custom lever; the Sphinx
   API reference under `docs/` builds clean under `sphinx-build -W` (RTD config in
@@ -352,8 +368,9 @@ tested; **Planned** is proposed, not yet built.
   only. Don't collapse these.
 - **Two generators, one contract.** `scm.py` returns a *superset* of the loop's cohort dict, so
   `SelectiveLabelsLoop` runs on either world. Keep that contract stable.
-- **The fidelity gate is the guard.** Any change to SCM marginals must keep `check_fidelity.py`
-  green, or the tolerances must be revisited deliberately.
+- **The marginal-fidelity gate is the guard.** It checks univariate marginals only (not the
+  joint/causal structure), so any change to SCM marginals must keep `check_fidelity.py` green,
+  or the tolerances must be revisited deliberately.
 - **`src/` layout.** Scripts inject `src/` onto `sys.path`, so they run without installing, but
   `pip install -e .` is recommended for tests and imports.
 
@@ -365,8 +382,9 @@ tested; **Planned** is proposed, not yet built.
   numpy 2.4.6** the suite is 90/90. See `FABLE.md` §8.
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
-- **`check_fidelity.py` exits 1 with "data not found".** The default `DEFAULT_DATA_DIR` is a
-  machine-specific absolute path — pass `--data-dir /path/to/dataset` (with `train.csv`).
+- **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not
+  shipped — set `CLDD_DATA_DIR=/path/to/dataset` (or pass `--data-dir /path/to/dataset`), a
+  directory containing `train.csv`. The gate is not runnable on the synthetic-only quickstart.
 - **`run_seed_sweep.py` is slow / memory-heavy.** By design it launches one subprocess per
   (seed, severity) eval; use `--quick` for a seed-42 smoke run.
 - **No plot window appears.** Scripts use the headless `Agg` backend and write PNGs to
