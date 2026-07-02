@@ -8,6 +8,9 @@ fails. Run from anywhere::
     python scripts/check_fidelity.py --data-dir /path/to/dataset --n 16000
 
 Exit code 0 == gate passed, 1 == gate failed (or data not found).
+
+When ``--data-dir`` is omitted, the ``CLDD_DATA_DIR`` env var is honored as the
+default dataset location (via ``DEFAULT_DATA_DIR``).
 """
 
 from __future__ import annotations
@@ -25,7 +28,9 @@ from cldd.fidelity import DEFAULT_DATA_DIR, run_fidelity_gate  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Verify SCM fidelity vs real data.")
+    p = argparse.ArgumentParser(
+        description="Verify SCM *marginal* fidelity vs real data (univariate "
+                    "marginals only; does not check the joint distribution).")
     p.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR),
                    help="real dataset directory (contains train.csv).")
     p.add_argument("--split", default="train", help="real split to compare against.")
@@ -50,9 +55,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(report.to_table())
     if not report.passed:
-        print("\nFIDELITY GATE FAILED.", file=sys.stderr)
+        print("\nMARGINAL FIDELITY GATE FAILED.", file=sys.stderr)
         return 1
-    print("\nFIDELITY GATE PASSED.")
+    print("\nMARGINAL FIDELITY GATE PASSED.")
     return 0
 
 

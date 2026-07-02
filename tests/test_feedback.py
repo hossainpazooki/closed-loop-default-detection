@@ -83,11 +83,19 @@ def test_funded_book_looks_fine_while_blind_spot_underpredicts():
     assert float(np.mean(gaps)) > 0.03
 
 
+@pytest.mark.pinned
 def test_exploration_stabilizes_blind_spot_bias():
     """A 5% random-approval budget cuts the mean blind-spot under-prediction
     across model generations (measured +0.0996 -> +0.0210). It does NOT reliably
     improve declined-ECE at this scale — that is exploration sampling variance,
-    and the docs state it — so only the bias reduction is asserted."""
+    and the docs state it — so only the bias reduction is asserted.
+
+    Version-sensitive -> ``pinned``. This is a float-output-dependent scientific
+    result: under scikit-learn 1.9.0 / numpy 2.4.6 (the requirements-dev.txt pins)
+    the direction is seed-robust and seed 42 halves the gap, but under other
+    resolved sklearn/numpy stacks the effect's magnitude and even sign can differ
+    (seed 42 reverses on the py3.10 range stack), so the cross-version compat
+    matrix must deselect this via -m "not pinned"."""
 
     def mean_gap(res):
         return float(

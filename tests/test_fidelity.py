@@ -11,6 +11,10 @@ the suite stays green in environments without the dataset.
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -91,3 +95,45 @@ def test_determinism_same_seed(real):
     a = compute_fidelity(real, load_synthetic(n_applicants=_N, seed=_SEED))
     b = compute_fidelity(real, load_synthetic(n_applicants=_N, seed=_SEED))
     assert a.get("default_base_rate").synth == b.get("default_base_rate").synth
+
+
+# --------------------------------------------------------------------------- #
+# Portable data-dir behavior (CLDD_DATA_DIR)
+# --------------------------------------------------------------------------- #
+
+
+def test_load_real_missing_dir_raises_with_env_hint(tmp_path):
+    """load_real on a nonexistent dir raises FileNotFoundError naming CLDD_DATA_DIR.
+
+    Guards the portable knob's discoverability: the error must point the user at
+    the CLDD_DATA_DIR environment variable, not just fail opaquely.
+    """
+    missing = tmp_path / "nope"
+    with pytest.raises(FileNotFoundError) as excinfo:
+        load_real(missing, split="train")
+    assert "CLDD_DATA_DIR" in str(excinfo.value)
+
+
+def test_cldd_data_dir_env_overrides_default(tmp_path):
+    """CLDD_DATA_DIR overrides DEFAULT_DATA_DIR at module import time.
+
+    Resolution happens at import, so we assert it in a fresh subprocess with the
+    env var set -- this keeps the in-process module (and the rest of the suite)
+    untouched, no reload side effects.
+    """
+    target = tmp_path / "some_data_dir"
+    target.mkdir()
+    code = (
+        "import cldd.fidelity as f; "
+        "print(str(f.DEFAULT_DATA_DIR))"
+    )
+    env = dict(**__import__("os").environ)
+    env["CLDD_DATA_DIR"] = str(target)
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert Path(result.stdout.strip()) == target

@@ -120,18 +120,23 @@ def test_explicit_corrector_list_matches_improve_mode_path():
 @pytest.mark.pinned
 def test_default_built_list_frozen_values():
     """correctors=None reproduces the legacy improve_mode='both' named fields, at
-    the frozen float values. Float-exact on HistGBT output -> pinned (reproducible
-    only under the requirements-dev.txt pins); the cross-version compat matrix
-    deselects it via -m "not pinned"."""
+    the frozen float values. Float-reproducible on HistGBT output -> pinned
+    (reproducible only under the requirements-dev.txt pins; compared at abs=1e-12
+    because pinning versions does not pin BLAS, so the last ULP varies across
+    machines); the cross-version compat matrix deselects it via -m "not pinned"."""
     default = SelectiveLabelsLoop(
         improve_mode="both", correctors=None, max_rounds=1, n_applicants=800, seed=42
     ).run().rounds[0]
 
-    assert default.naive.declined_ece == _NAIVE_ECE
-    assert default.reweight.declined_ece == _REWEIGHT_ECE
-    assert default.retrain.declined_ece == _RETRAIN_ECE
+    # Compared at a tight absolute tolerance rather than bit-exact ==: pinning the
+    # sklearn/numpy *versions* does not pin the BLAS/CPU, so HistGBT float output can
+    # differ by ~1 ULP across machines (observed on CI under the same pins). abs=1e-12
+    # still asserts ~12-digit reproducibility -- far tighter than any real drift.
+    assert default.naive.declined_ece == pytest.approx(_NAIVE_ECE, abs=1e-12, rel=0)
+    assert default.reweight.declined_ece == pytest.approx(_REWEIGHT_ECE, abs=1e-12, rel=0)
+    assert default.retrain.declined_ece == pytest.approx(_RETRAIN_ECE, abs=1e-12, rel=0)
     # Control keys on reweight (priority 2 > retrain 1 > naive 0) under "both".
-    assert default.control_metric == _REWEIGHT_ECE
+    assert default.control_metric == pytest.approx(_REWEIGHT_ECE, abs=1e-12, rel=0)
 
 
 def test_corrections_map_has_expected_keys():
