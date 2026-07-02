@@ -103,8 +103,9 @@ same seed (a test enforces this), and the loop-internal functional API (`train_p
 Scope, precisely: the estimator is **binary-only** (`fit` raises on 3+ classes — PD is a
 default/repaid indicator), NaN features are accepted (`HistGradientBoostingClassifier` handles
 them natively), and the full `sklearn.utils.estimator_checks.check_estimator` battery passes
-with **zero failed checks** on the versions exercised so far (scikit-learn 1.8.0 and the pinned
-1.9.0; `tests/test_sklearn_compat.py` runs the battery in CI). One semantic caveat survives the
+with **zero failed checks** on the versions exercised so far — scikit-learn 1.7.2 and 1.9.0 on
+the CI compat matrix (`tests/test_sklearn_compat.py` runs the battery there), plus a one-off
+local 1.8.0 run. One semantic caveat survives the
 battery: exact sample-weight *equivalence* (weight k == repeating a row k times) is not
 guaranteed by design, because the calibration split is index-based and HistGBT bins features.
 
@@ -284,7 +285,7 @@ reproduce those exact figures:
 pip install -r requirements-dev.txt && pip install -e . --no-deps
 ```
 
-The **five** float-exact tests are marked `pinned` and reproduce **only** under those pins; the
+The **six** float-sensitive tests are marked `pinned` and reproduce **only** under those pins; the
 CI `compat` matrix deselects them with `-m "not pinned"`. The library deps stay as ranges so a
 plain `pip install` works alongside your own sklearn.
 

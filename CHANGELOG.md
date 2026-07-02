@@ -25,7 +25,8 @@ Initial alpha of the selective-labels default-detection harness.
   detector (`fit`/`predict_proba`/`predict`, `clone`, `get_params`/`set_params`,
   `classes_`, `n_features_in_`, `NotFittedError`). Binary-only by design; byte-identical
   probabilities to `train_pd_model` under the same seed; the full `check_estimator`
-  battery passes on scikit-learn 1.8.0/1.9.0 (`tests/test_sklearn_compat.py`).
+  battery passes on scikit-learn 1.7.2–1.9.0 (`tests/test_sklearn_compat.py`, run on
+  the CI compat matrix).
 - Packaging hygiene: `cldd.__version__`, a PEP 561 `py.typed` marker, and coverage
   tooling (`pytest --cov=cldd`).
 - Dedicated regression tests for `model_pd.py` and `eval_default.py`.

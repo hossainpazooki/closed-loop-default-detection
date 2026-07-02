@@ -84,8 +84,8 @@ floats) or direction-only (scientific effects), and the suite now classifies eac
   *for the detector, with a documented boundary*: `CalibratedPDClassifier` is a thin
   `BaseEstimator`/`ClassifierMixin` wrapper around `train_pd_model` (byte-identical
   probabilities under the same seed, enforced by test). The full `check_estimator` battery
-  passes with zero failed checks on scikit-learn 1.8.0 and the pinned 1.9.0
-  (`tests/test_sklearn_compat.py`). Honest scope limits: the estimator is **binary-only**
+  passes with zero failed checks on scikit-learn 1.7.2 and the pinned 1.9.0 on the CI
+  compat matrix, plus a one-off local 1.8.0 run (`tests/test_sklearn_compat.py`). Honest scope limits: the estimator is **binary-only**
   (`fit` raises on 3+ classes), and exact sample-weight equivalence (weight k == repeat k
   times) is not *guaranteed* — the calibration split is index-based and HistGBT bins
   features — though no current battery check detects a violation. The loop-internal

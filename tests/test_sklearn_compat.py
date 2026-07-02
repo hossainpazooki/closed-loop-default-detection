@@ -173,7 +173,8 @@ def test_nan_features_are_accepted():
 #: indices, and ``HistGradientBoostingClassifier`` bins features, so exact
 #: weight-k == repeat-k-times equivalence is not guaranteed by design), record its
 #: name substring here WITH a rationale. Empty means: every generated check passes
-#: on the versions tested so far (scikit-learn 1.8.0 and the pinned 1.9.0).
+#: on the versions tested so far (scikit-learn 1.7.2 and 1.9.0 on the CI compat
+#: matrix, plus a one-off local 1.8.0 run).
 VERSION_SPECIFIC_ALLOWED_FAILURES: tuple[str, ...] = ()
 
 
