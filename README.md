@@ -87,7 +87,33 @@ which lives in `cldd.fidelity`). Full reference: the Sphinx docs under [`docs/`]
 | `FeedbackLoop`, `FeedbackResult`, `GenerationResult` | model-in-the-loop selective-labels simulation |
 | `positivity_diagnostics`, `PositivityDiagnostics` | observable regime / drift alarm (needs **no** declined-row labels) |
 | `fit_observed_model`, `score_pd_detection` | the measure-stage building blocks (train-on-approved / score-on-truth) |
+| `CalibratedPDClassifier` | the calibrated PD detector as a scikit-learn estimator (see "sklearn compatibility" below) |
 | `from cldd.fidelity import run_fidelity_gate, FidelityReport` | SCM-vs-real **marginal**-fidelity report with `.get_score()` (0–1) and `.get_details()` (DataFrame) — checks univariate marginals only, not the joint/causal structure |
+
+### sklearn compatibility
+
+`CalibratedPDClassifier` wraps the research entry point `train_pd_model` behind the standard
+scikit-learn estimator API — `fit(X, y, sample_weight=None)` / `predict_proba` / `predict`,
+`get_params`/`set_params`, `clone`, `check_is_fitted`, `classes_`, `n_features_in_` — so the
+detector can sit in a `Pipeline` or `cross_validate` call. The wrapper is deliberately thin:
+`predict_proba(X)[:, 1]` is **byte-identical** to `train_pd_model(X, y).predict_pd(X)` under the
+same seed (a test enforces this), and the loop-internal functional API (`train_pd_model`,
+`predict_pd`, `selection_adjusted_weights`, `CalibratedPDModel`) is unchanged.
+
+Scope, precisely: the estimator is **binary-only** (`fit` raises on 3+ classes — PD is a
+default/repaid indicator), NaN features are accepted (`HistGradientBoostingClassifier` handles
+them natively), and the full `sklearn.utils.estimator_checks.check_estimator` battery passes
+with **zero failed checks** on the versions exercised so far (scikit-learn 1.8.0 and the pinned
+1.9.0; `tests/test_sklearn_compat.py` runs the battery in CI). One semantic caveat survives the
+battery: exact sample-weight *equivalence* (weight k == repeating a row k times) is not
+guaranteed by design, because the calibration split is index-based and HistGBT bins features.
+
+```python
+from sklearn.model_selection import cross_val_score
+from cldd import CalibratedPDClassifier
+
+scores = cross_val_score(CalibratedPDClassifier(random_state=42), X, y, scoring="neg_brier_score")
+```
 
 ### Extending: add a correction lever
 

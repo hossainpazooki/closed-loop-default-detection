@@ -78,10 +78,19 @@ floats) or direction-only (scientific effects), and the suite now classifies eac
 | "all passed" count is machine-specific; `tests/test_fidelity.py` skips data-backed tests when dataset absent | minor | [DOCUMENTED] | De-hardcoded the test counts in README/CI so the local all-pass number is no longer quoted as universal. |
 | Build/install baseline | — | [BUILD-OK] | Clean PEP 517 wheel builds; public repo clone + `pip install -e .` works; `examples/quickstart.py` runs to completion (exit 0). No action. |
 
-## Explicit non-goal
+## Former non-goal, now shipped with a documented boundary
 
-- **sklearn-API compatibility (BaseEstimator / `check_estimator`) is deliberately NOT pursued** [NON-GOAL].
-  The estimators are loop-internal; treat this as a post-alpha optional extension, not an alpha blocker.
+- **sklearn-API compatibility** was originally recorded here as [NON-GOAL]. It is now [DONE] —
+  *for the detector, with a documented boundary*: `CalibratedPDClassifier` is a thin
+  `BaseEstimator`/`ClassifierMixin` wrapper around `train_pd_model` (byte-identical
+  probabilities under the same seed, enforced by test). The full `check_estimator` battery
+  passes with zero failed checks on scikit-learn 1.8.0 and the pinned 1.9.0
+  (`tests/test_sklearn_compat.py`). Honest scope limits: the estimator is **binary-only**
+  (`fit` raises on 3+ classes), and exact sample-weight equivalence (weight k == repeat k
+  times) is not *guaranteed* — the calibration split is index-based and HistGBT bins
+  features — though no current battery check detects a violation. The loop-internal
+  functional API (correctors, the loop, `train_pd_model` itself) remains intentionally
+  outside the sklearn contract.
 
 ## How this was verified
 

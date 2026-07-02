@@ -37,7 +37,7 @@ from .reject_inference import (
     RejectInferenceCorrector,
 )
 from .eval_default import PdDetectionResult, fit_observed_model, score_pd_detection
-from .model_pd import CalibratedPDModel
+from .model_pd import CalibratedPDClassifier, CalibratedPDModel
 from .feedback import FeedbackLoop, FeedbackResult, GenerationResult
 from .loop import LeverMetrics, LoopResult, RoundResult, SelectiveLabelsLoop
 from .scm import (
@@ -88,6 +88,7 @@ __all__ = [
     "fit_observed_model",
     "score_pd_detection",
     "CalibratedPDModel",
+    "CalibratedPDClassifier",
     "CounterfactualResult",
     "GComputationEstimator",
     "run_counterfactual_eval",

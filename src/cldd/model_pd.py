@@ -17,9 +17,12 @@ NaNs natively, so no imputation is needed. Everything is deterministic per seed.
 from __future__ import annotations
 
 import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.model_selection import train_test_split
+from sklearn.utils.multiclass import type_of_target
+from sklearn.utils.validation import _check_sample_weight, check_is_fitted, validate_data
 
 from . import config
 
@@ -40,6 +43,77 @@ class CalibratedPDModel:
         if self.calibrator is not None:
             raw = self.calibrator.predict(raw)
         return np.clip(raw, 0.0, 1.0)
+
+
+class CalibratedPDClassifier(ClassifierMixin, BaseEstimator):
+    """scikit-learn-compatible face of the calibrated PD detector.
+
+    A thin ``BaseEstimator``/``ClassifierMixin`` wrapper around
+    :func:`train_pd_model` — ``fit`` delegates to it verbatim (same seed
+    conventions, same sample-weight forwarding, same calibration-skip rule), so
+    the probabilities in ``predict_proba(X)[:, 1]`` are byte-identical to
+    ``train_pd_model(X, y, ...).predict_pd(X)``. Use this class from sklearn
+    tooling (``clone``, ``Pipeline``, ``cross_validate``); use the functional
+    API from the closed loop.
+
+    Binary problems only: ``fit`` raises ``ValueError`` unless ``y`` has exactly
+    two classes (the PD domain is a default/repaid indicator). One semantic
+    caveat: exact sample-weight *equivalence* (weight k == repeat k times) is
+    not guaranteed by design — the calibration split is drawn on row indices
+    and ``HistGradientBoostingClassifier`` bins features — although the
+    ``check_estimator`` battery (which every generated check passes on the
+    tested sklearn versions; see ``tests/test_sklearn_compat.py``) does not
+    currently detect a violation.
+
+    Parameters
+    ----------
+    random_state : int or None
+        Seed forwarded to :func:`train_pd_model`; ``None`` falls back to
+        ``config.RANDOM_SEED``, so fitting is deterministic either way.
+    """
+
+    def __init__(self, random_state: int | None = None):
+        self.random_state = random_state
+
+    def fit(self, X, y, sample_weight=None) -> "CalibratedPDClassifier":
+        """Fit the calibrated PD model; returns ``self``."""
+        X, y = validate_data(self, X, y, dtype=float, ensure_all_finite="allow-nan")
+        y_type = type_of_target(y, input_name="y", raise_unknown=True)
+        if y_type != "binary":  # sklearn's prescribed rejection for multi_class=False
+            raise ValueError(
+                "Only binary classification is supported. The type of the target "
+                f"is {y_type}."
+            )
+        self.classes_, y_encoded = np.unique(y, return_inverse=True)
+        if len(self.classes_) != 2:
+            raise ValueError(
+                f"CalibratedPDClassifier requires exactly 2 classes; "
+                f"got {len(self.classes_)} class(es): {self.classes_!r}"
+            )
+        if sample_weight is not None:
+            sample_weight = _check_sample_weight(sample_weight, X, dtype=np.float64)
+        self.model_ = train_pd_model(
+            X, y_encoded, sample_weight=sample_weight, random_state=self.random_state
+        )
+        return self
+
+    def predict_proba(self, X) -> np.ndarray:
+        """Calibrated class probabilities, shape ``(n_samples, 2)``."""
+        check_is_fitted(self)
+        X = validate_data(self, X, dtype=float, ensure_all_finite="allow-nan", reset=False)
+        pd_hat = self.model_.predict_pd(X)
+        return np.column_stack((1.0 - pd_hat, pd_hat))
+
+    def predict(self, X) -> np.ndarray:
+        """Most-probable class label per row (in the labels ``fit`` was given)."""
+        proba = self.predict_proba(X)  # runs the fitted check before classes_ is touched
+        return self.classes_[np.argmax(proba, axis=1)]
+
+    def __sklearn_tags__(self):
+        tags = super().__sklearn_tags__()
+        tags.classifier_tags.multi_class = False  # PD is a binary domain
+        tags.input_tags.allow_nan = True  # HistGradientBoosting handles structural NaNs
+        return tags
 
 
 def _new_classifier(random_state: int) -> HistGradientBoostingClassifier:

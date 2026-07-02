@@ -21,6 +21,11 @@ Initial alpha of the selective-labels default-detection harness.
 - **Counterfactual validator**: a deployable g-computation estimator vs. naive conditioning.
 - **Feedback / exploration** simulation and observable positivity diagnostics.
 - Top-level export of the calibrated PD detector, `CalibratedPDModel`.
+- **`CalibratedPDClassifier`**: a scikit-learn estimator face for the calibrated PD
+  detector (`fit`/`predict_proba`/`predict`, `clone`, `get_params`/`set_params`,
+  `classes_`, `n_features_in_`, `NotFittedError`). Binary-only by design; byte-identical
+  probabilities to `train_pd_model` under the same seed; the full `check_estimator`
+  battery passes on scikit-learn 1.8.0/1.9.0 (`tests/test_sklearn_compat.py`).
 - Packaging hygiene: `cldd.__version__`, a PEP 561 `py.typed` marker, and coverage
   tooling (`pytest --cov=cldd`).
 - Dedicated regression tests for `model_pd.py` and `eval_default.py`.
@@ -42,6 +47,7 @@ Initial alpha of the selective-labels default-detection harness.
 - The real-data fidelity gate needs a **private** dataset and therefore **does not run on
   public CI**; coverage of `cldd/fidelity.py`'s data-loading path is correspondingly low on
   CI by design. See the README "Tests, validation, and docs" section.
-- scikit-learn-estimator API compatibility (`BaseEstimator` / `check_estimator`) is an
-  explicit non-goal: the estimators are loop-internal, not intended as drop-in sklearn
-  components.
+- scikit-learn-estimator API compatibility is provided **through `CalibratedPDClassifier`
+  only** (binary-only, sample-weight equivalence not guaranteed — see README "sklearn
+  compatibility"). The loop-internal functional API (`train_pd_model`, correctors, the
+  loop itself) remains outside the sklearn estimator contract by design.
