@@ -2,7 +2,8 @@
 
 Purpose: record the results of a rigor `/recon` (fan-out recon -> refute -> synthesize) audit of this
 harness answering "how can the validation harness be taken to alpha?", plus the three fixes applied.
-Date: 2026-07-01. Status tags are literal; the implemented-vs-planned boundary is meant to be visible.
+Date: 2026-07-01 (CI-determinism section added 2026-07-02). Status tags are literal; the
+implemented-vs-planned boundary is meant to be visible.
 
 ## Corrections to prior assumptions
 
@@ -34,6 +35,37 @@ orchestrator against raw sources, not merely reported by an agent.
   After: documents the >=3.11 requirement for the pinned provenance set and points 3.10 users to
   `pip install -e ".[dev]"`. `requires-python>=3.10` is left unchanged because CI tests 3.10-3.13 via
   the range install.
+
+## CI red-vs-local-green: two float-determinism failures (fixed 2026-07-02)
+
+Both CI matrices were red last week while the local suite was 92/92 — a concrete instance of the
+"machine-specific green" risk below. Two distinct, PRE-EXISTING causes (neither related to items
+1/3/5, neither in files this change touched); diagnosed by re-running locally plus a seed sweep,
+then fixed by correcting test *classification*, not by weakening the science.
+
+- **`test_correctors.py::test_default_built_list_frozen_values` (pinned-repro job) [FIXED].**
+  Failed by ~1 ULP (`0.02465355314770569` vs frozen `...705676`) on the `reweight` value, under the
+  *same* pinned scikit-learn 1.9.0 the job installs. Root cause: pinning package *versions* does not
+  pin the *BLAS/CPU*, so HistGBT float output can differ in the last ULP across machines; the frozen
+  literals were captured on the maintainer's BLAS. Fix: the frozen-literal asserts now compare with
+  `pytest.approx(..., abs=1e-12, rel=0)` instead of bit-exact `==` — still ~12-digit reproducibility,
+  ~10^5x tighter than any observed drift. The sibling `test_explicit_corrector_list_matches_improve_mode_path`,
+  which compares two in-process runs to *each other*, keeps exact `==` (environment-independent).
+- **`test_feedback.py::test_exploration_stabilizes_blind_spot_bias` (compat/range matrix, all 3 OSes) [FIXED].**
+  Failed identically on macOS/Windows/Ubuntu (deterministic given the deps): under the py3.10
+  range-resolved stack the effect *reverses* — `mean_gap(explore)=0.153 > mean_gap(no-explore)=0.136`
+  at seed 42, vs `0.0996 -> 0.0210` under the pins. A local seed sweep under the pins showed the
+  *direction* is seed-robust (6/6) but the `< half` magnitude threshold is fragile (5/6) and the
+  *sign* flips across the dependency stack. Root cause: this is a float-output-dependent scientific
+  assertion — exactly what the `pinned` marker exists for — that was mistakenly left unmarked, so the
+  compat matrix (which runs `-m "not pinned"` to test only version-robust behavior) ran it against deps
+  under which the effect isn't present. Fix: marked `@pytest.mark.pinned` (matching its siblings) and
+  scoped its docstring to the pins. No science weakened — the mislabel was corrected; the README
+  Troubleshooting section already listed "exploration thresholds" among the version-sensitive tests.
+
+Net: **pinning versions is not pinning determinism.** The "byte-deterministic per seed" invariant
+holds *within* one environment; across machines/versions, reproducibility is ~12 digits (frozen
+floats) or direction-only (scientific effects), and the suite now classifies each assertion accordingly.
 
 ## Open path-to-alpha items
 
