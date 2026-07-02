@@ -3,148 +3,69 @@
 [![CI](https://github.com/hossainpazooki/closed-loop-default-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/hossainpazooki/closed-loop-default-detection/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docs: Sphinx](https://img.shields.io/badge/docs-sphinx-blue.svg)](docs/)
+[![Python ≥3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue.svg)](pyproject.toml)
 
-**CLDD (`cldd`) is a deterministic, scikit-learn-only Python library for stress-testing
-credit-risk / probability-of-default (PD) models under *selective labels*.** It builds
-synthetic lending worlds with known ground truth, hides labels the way real approval
-policies do, and measures where a PD model stays trustworthy on the applicants it
-*declined* — and the selection severity at which it breaks down (the model's **operating
-frontier**).
+**Stress-test a probability-of-default (PD) model under *selective labels* — and get the
+severity at which it breaks.** Real lending data only labels the loans a prior underwriter
+approved, so you cannot measure calibration on the applicants you *declined* — exactly where a
+new model must still be right. CLDD builds synthetic lending worlds with planted ground truth,
+hides labels the way real approval policies do, and grades every correction against that truth.
 
-The correction levers are **pluggable** (add one by subclassing `Corrector`), the whole
-harness is **byte-deterministic** per seed, and every result is graded against planted
-ground truth rather than an unverifiable score.
+- **Deterministic** — byte-identical per seed, scikit-learn-only, no services or GPUs.
+- **Pluggable** — correction levers (IPW, retrain, exploration, reject inference) are classes;
+  add yours by subclassing `Corrector`.
+- **Honest by construction** — every number below recomputes from committed CSVs; limits are
+  reported, not smoothed over.
 
-## Why it exists
+## The result it produces
 
-Real lending data only records repayment for loans a prior underwriter **approved**. The
-**declined** applicants — the ones a new model must still score — have no observed outcome,
-so you cannot directly measure calibration on them. This is the *selective labels* problem,
-and it is why an offline PD model can look well-calibrated and still be wrong exactly where
-it matters.
+The loop escalates selection severity until correction fails and reports the **operating
+frontier** — the last severity at which declined-cohort calibration still holds (target
+ECE ≤ 0.10). From the committed runs (`artifacts/clue_frontier*.csv`, seed 42):
 
-CLDD sidesteps it by working where the ground truth is known:
+| Selection severity | 0.0 | 0.2 | 0.4 | 0.6 |
+|---|---|---|---|---|
+| Naive declined ECE (flat world) | 0.021 | 0.045 | 0.108 | 0.161 |
+| **IPW-corrected** (flat world) | 0.020 | 0.038 | **0.086 ✓** | **0.154 ✗** |
+| **IPW-corrected** (SCM world) | 0.036 | 0.038 | **0.097 ✓** | **0.244 ✗** |
 
-1. **Plant** a true `default_flag` for *every* applicant in a synthetic cohort.
-2. **Hide** it through a realistic approval policy (only approved rows get observed labels).
-3. **Measure** a PD model trained on approved rows against the planted truth on the
-   *declined* subpopulation.
-4. **Escalate** the selection severity until correction breaks, and report the **frontier**.
+Both worlds land the frontier at **severity 0.4**, and the counterfactual deliverable breaks at
+the same boundary: across 25 seeds, g-computation cuts strong-propagation counterfactual MAE
+from 0.099 to 0.086 (−13.5%, positive on 24/25 seeds, Wilcoxon p = 1.5e-7) *inside* the
+frontier — and collapses to a negligible +0.0017 at full severity, where **no deployable
+advantage is claimed**. One cause explains both: selection through an **unobserved
+confounder**, which backdoor adjustment and IPW cannot fix. That single measured limit — not
+an unverifiable score — is the deliverable.
 
-Because part of the approval policy runs through an **unobserved confounder**, observational
-corrections (like inverse-propensity weighting) degrade as severity rises — so the frontier
-is a real, defensible limit, not an artifact.
+Reproduce the headline from committed evidence: `python scripts/paired_significance.py`.
+The full independent assessment (methodology, all numbers, what didn't hold) is the
+accompanying article, [`FABLE.md`](FABLE.md).
 
 ## Install
 
-> **Not on PyPI yet.** Install from source. The distribution name is
-> `closed-loop-default-detection`; the **import name is `cldd`**.
+> **Not on PyPI yet** (planned). Install from source; the import name is **`cldd`**.
 
 ```bash
 git clone https://github.com/hossainpazooki/closed-loop-default-detection.git
 cd closed-loop-default-detection
-python -m venv .venv
-. .venv/Scripts/activate          # Windows; use `. .venv/bin/activate` on macOS/Linux
-pip install -e ".[dev]"           # editable install + pytest
+pip install -e ".[dev]"
 ```
 
-**Requirements:** Python ≥ 3.10. No system services, no database, no Docker. Dependencies are
-declared as **ranges** (`numpy>=2.0`, `pandas>=2.2`, `scikit-learn>=1.6`, `scipy>=1.11`,
-`matplotlib>=3.8`) so `cldd` sits alongside your own stack. Optional extras: `[dev]` (pytest),
-`[docs]` (Sphinx). The exact pins under which the committed numbers reproduce live in
-`requirements-dev.txt` — see [Reproducibility](#reproducibility-and-the-pinned-tests).
+Python ≥ 3.10; dependencies are ranges (`numpy>=2.0`, `pandas>=2.2`, `scikit-learn>=1.6`,
+`scipy>=1.11`, `matplotlib>=3.8`) so `cldd` sits alongside your stack. Exact pins for
+float-exact reproduction: [`requirements-dev.txt`](requirements-dev.txt)
+([details](docs/validation.md)).
 
-## Quickstart
+## 60-second tour
 
 ```python
 from cldd import SelectiveLabelsLoop
 
-loop = SelectiveLabelsLoop(improve_mode="both")   # "reweight" | "retrain" | "both"
-result = loop.run()
-
-print("Operating frontier (highest passing severity):", result.frontier_severity)
+result = SelectiveLabelsLoop(improve_mode="both").run()   # "reweight" | "retrain" | "both"
+print("Operating frontier:", result.frontier_severity)
 for r in result.rounds:
     print(r.selection_severity, r.naive.declined_ece, r.passed)
 ```
-
-`result` is a `LoopResult`; each `result.rounds[i]` is a `RoundResult` carrying the per-lever
-`LeverMetrics` and the `control_metric` that drives the frontier search. A runnable end-to-end
-demo (classic + custom-lever paths) is in [`examples/quickstart.py`](examples/quickstart.py).
-
-## Public API
-
-Everything below is importable from the top-level `cldd` package (except the fidelity report,
-which lives in `cldd.fidelity`). Full reference: the Sphinx docs under [`docs/`](docs/).
-
-| Import | What it is |
-|---|---|
-| `SelectiveLabelsLoop` | the closed loop; `.run()` → `LoopResult` |
-| `LoopResult`, `RoundResult`, `LeverMetrics` | result objects: frontier, per-round record, per-lever metrics |
-| `Corrector`, `CorrectorContext`, `CorrectionOutcome` | the lever ABC to subclass + what `apply` receives / returns |
-| `NaiveCorrector`, `IPWReweightCorrector`, `DisjointRetrainCorrector`, `ExplorationCorrector` | the four built-in correction levers |
-| `SyntheticBorrowerGenerator`, `StructuralBorrowerGenerator` | the flat and fitted-SCM synthetic worlds |
-| `run_counterfactual_eval`, `GComputationEstimator` | counterfactual validator (deployable g-computation vs naive conditioning) |
-| `FeedbackLoop`, `FeedbackResult`, `GenerationResult` | model-in-the-loop selective-labels simulation |
-| `positivity_diagnostics`, `PositivityDiagnostics` | observable regime / drift alarm (needs **no** declined-row labels) |
-| `fit_observed_model`, `score_pd_detection` | the measure-stage building blocks (train-on-approved / score-on-truth) |
-| `CalibratedPDClassifier` | the calibrated PD detector as a scikit-learn estimator (see "sklearn compatibility" below) |
-| `from cldd.fidelity import run_fidelity_gate, FidelityReport` | SCM-vs-real **marginal**-fidelity report with `.get_score()` (0–1) and `.get_details()` (DataFrame) — checks univariate marginals only, not the joint/causal structure |
-
-### sklearn compatibility
-
-`CalibratedPDClassifier` wraps the research entry point `train_pd_model` behind the standard
-scikit-learn estimator API — `fit(X, y, sample_weight=None)` / `predict_proba` / `predict`,
-`get_params`/`set_params`, `clone`, `check_is_fitted`, `classes_`, `n_features_in_` — so the
-detector can sit in a `Pipeline` or `cross_validate` call. The wrapper is deliberately thin:
-`predict_proba(X)[:, 1]` is **byte-identical** to `train_pd_model(X, y).predict_pd(X)` under the
-same seed (a test enforces this), and the loop-internal functional API (`train_pd_model`,
-`predict_pd`, `selection_adjusted_weights`, `CalibratedPDModel`) is unchanged.
-
-Scope, precisely: the estimator is **binary-only** (`fit` raises on 3+ classes — PD is a
-default/repaid indicator), NaN features are accepted (`HistGradientBoostingClassifier` handles
-them natively), and the full `sklearn.utils.estimator_checks.check_estimator` battery passes
-with **zero failed checks** on the versions exercised so far — scikit-learn 1.7.2 and 1.9.0 on
-the CI compat matrix (`tests/test_sklearn_compat.py` runs the battery there), plus a one-off
-local 1.8.0 run. One semantic caveat survives the
-battery: exact sample-weight *equivalence* (weight k == repeating a row k times) is not
-guaranteed by design, because the calibration split is index-based and HistGBT bins features.
-
-```python
-from sklearn.model_selection import cross_val_score
-from cldd import CalibratedPDClassifier
-
-scores = cross_val_score(CalibratedPDClassifier(random_state=42), X, y, scoring="neg_brier_score")
-```
-
-### Extending: add a correction lever
-
-The correction levers are pluggable — pass `correctors=[...]` instead of `improve_mode`. A
-lever is a `Corrector` subclass (`name`, `control_priority`, `apply`); the present lever with
-the highest `control_priority` drives loop control, and `RoundResult.corrections` exposes the
-general name→metrics map.
-
-```python
-from cldd import SelectiveLabelsLoop, Corrector, NaiveCorrector, CorrectionOutcome
-
-class MyCorrector(Corrector):
-    name = "my_lever"
-    control_priority = 5          # built-ins: naive=0, retrain=1, reweight=2, explore=3
-    def apply(self, cohort, ctx) -> CorrectionOutcome:
-        ...                       # return CorrectionOutcome(metrics=..., info={})
-
-result = SelectiveLabelsLoop(correctors=[NaiveCorrector(), MyCorrector()]).run()
-```
-
-The list **must include a `NaiveCorrector`** (the loop projects it as `RoundResult.naive`);
-omitting it raises a `ValueError` at construction. When `correctors` is omitted, the loop
-builds the default list from `improve_mode` / `exploration_rate` exactly as before, so the
-legacy API is unchanged (and byte-identical). See [`CONTRIBUTING.md`](CONTRIBUTING.md) →
-"Adding a correction lever" for the full contract.
-
-## How the closed loop works
-
-"Closed loop" is the **generate → measure → improve → regenerate** cycle, escalating each
-round until the detector fails.
 
 ```mermaid
 flowchart TD
@@ -159,283 +80,90 @@ flowchart TD
     D -->|"no &mdash; stop"| E
 ```
 
-| Stage | Module | What happens |
-|---|---|---|
-| **Generate** | `cldd/synthetic.py` (or `cldd/scm.py`) | build a cohort at `selection_severity ∈ [0,1]` (0 = approval random w.r.t. risk, 1 = approval tracks full latent risk incl. an unobserved confounder) |
-| **Measure** | `cldd/eval_default.py` | train PD model on approved rows only; score against planted truth on the **declined** subpopulation (ECE is the headline metric) |
-| **Improve** | `cldd/loop.py` + `cldd/correctors.py` | apply the pluggable correction levers — **IPW reweight**, **retrain** on a disjoint no-leakage cohort, **exploration** (buy labels) |
-| **Regenerate / frontier** | `cldd/loop.py` | if the corrected model still clears the target, raise severity; otherwise stop and report the frontier |
+A runnable end-to-end demo (classic + custom-lever paths) is
+[`examples/quickstart.py`](examples/quickstart.py). Full mechanics, diagnostics, and the
+feedback simulation: [docs/how-it-works.md](docs/how-it-works.md).
 
-**Two mechanisms hang off that loop** — one observable without any declined-row label, one
-that simulates the deployment feedback dynamic:
+> **Scope.** CLDD is a synthetic **validation harness**, not a production pipeline: retraining
+> and feedback are seeded simulations inside the harness; it never acts on live data or real
+> lending decisions.
 
-```mermaid
-flowchart LR
-    subgraph diag["Observable diagnostics — no declined labels needed"]
-        direction TB
-        P["PD model + cohort<br/>(every round)"] --> Q["Positivity diagnostics<br/>propensity AUC &middot; IPW ESS &middot; clip-floor share"] --> R["Regime / drift alarm"]
-    end
-    subgraph fb["Model-in-the-loop — simulated by FeedbackLoop"]
-        direction TB
-        M["Deployed model approves<br/>the top-k safest applicants"] --> N["Their observed outcomes label<br/>the next generation's training data"]
-        N -. "next generation" .-> M
-    end
+## What's in the box
+
+Everything is importable from top-level `cldd` (full reference: the [Sphinx docs](docs/)):
+
+| Import | What it is |
+|---|---|
+| `SelectiveLabelsLoop` | the closed loop; `.run()` → `LoopResult` (frontier + per-round metrics) |
+| `Corrector` + `NaiveCorrector`, `IPWReweightCorrector`, `DisjointRetrainCorrector`, `ExplorationCorrector` | the lever ABC and the four built-ins |
+| `ReclassificationCorrector`, `AugmentationCorrector`, `FuzzyAugmentationCorrector`, `ParcellingCorrector` | four classic reject-inference methods, graded against planted truth ([honest results](docs/reject_inference.md)) |
+| `SyntheticBorrowerGenerator`, `StructuralBorrowerGenerator` | the flat and fitted-SCM synthetic worlds |
+| `run_counterfactual_eval`, `GComputationEstimator` | counterfactual validator (g-computation vs naive conditioning) |
+| `FeedbackLoop` | model-in-the-loop selective-labels simulation |
+| `positivity_diagnostics` | observable regime/drift alarm — needs **no** declined-row labels |
+| `CalibratedPDClassifier` | the calibrated PD detector as a scikit-learn estimator |
+| `cldd.fidelity.run_fidelity_gate` | SCM-vs-real **marginal**-fidelity gate (univariate marginals only) |
+
+**Add a lever** by subclassing `Corrector` (`name`, `control_priority`, `apply`) and passing
+`correctors=[NaiveCorrector(), MyCorrector()]` — the legacy `improve_mode` API is unchanged
+and byte-identical. Contract details: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Use the detector from sklearn tooling** — `CalibratedPDClassifier` is a thin, tested wrapper
+(binary-only; NaN features OK; the full `check_estimator` battery passes with zero failed
+checks on scikit-learn 1.7.2–1.9.0; probabilities byte-identical to the research API):
+
+```python
+from sklearn.model_selection import cross_val_score
+from cldd import CalibratedPDClassifier
+
+scores = cross_val_score(CalibratedPDClassifier(random_state=42), X, y, scoring="neg_brier_score")
 ```
-
-**Why it is useful**
-
-- **Earlier, broader detection.** The loop scores and *calibrates* default risk on the
-  **declined** applicants real data never labels — not just the approved book — so blind
-  spots surface before they cost anything.
-- **Improvement from observed outcomes (within the harness).** Each round applies the
-  correction levers and re-measures; `FeedbackLoop` additionally simulates the deployment
-  dynamic where the model's own approvals shape the next generation's training labels.
-- **Drift and performance visibility.** Observable positivity diagnostics fire *without any
-  declined-row label*, and the marginal-fidelity gate guards the synthetic world's univariate
-  marginals against real-data drift.
-- **A clear, checked feedback path.** Every correction is graded against planted ground truth,
-  so the loop reports a defensible **operating frontier** instead of an unverifiable score.
-
-> **What this loop is — and isn't.** This is a **synthetic validation harness**, not a live
-> production pipeline. The "retrain" lever and the dashed feedback arrow are **deterministic,
-> seeded simulations** run inside the harness — **the system does not retrain automatically and
-> does not act on live data or real lending decisions.** A deployed system's "decision →
-> observed outcome" path is modeled here by the synthetic approval policy and, for the
-> model-as-policy dynamic, by `FeedbackLoop`. Wiring any of this into a production system is a
-> separate, manual step.
 
 ## Command-line drivers
 
-The package ships runnable drivers (each adds `src/` to the path, so no install is strictly
-required) that write to `artifacts/`:
+Each driver runs without install (adds `src/` to the path) and writes to `artifacts/`:
 
 ```bash
-# 1) The closed loop — operating-frontier table + plot + a printed summary
-python scripts/run_clue.py                      # flat world (default)
-python scripts/run_clue.py --generator scm      # SCM world (writes *_scm artifacts)
-python scripts/run_clue.py --exploration-rate 0.10   # add the exploration lever
-
-# 2) Multi-seed counterfactual certification (g-computation vs naive)
-python scripts/run_seed_sweep.py [--quick]      # --quick = seed 42 only (smoke)
-
-# 3) Exploration-budget sweep (frontier vs labels bought)
-python scripts/run_exploration_sweep.py [--quick]
-
-# 4) Model-in-the-loop feedback simulation
-python scripts/run_feedback.py [--quick]
-
-# 5) Paired significance test on the committed 25-seed sweep
-python scripts/paired_significance.py
+python scripts/run_clue.py                    # the closed loop → frontier table + plot (--generator scm for the SCM world)
+python scripts/run_seed_sweep.py --quick      # counterfactual certification (drop --quick for all seeds)
+python scripts/run_reject_inference.py        # reject-inference levers vs the frontier
+python scripts/run_exploration_sweep.py       # frontier vs exploration budget
+python scripts/run_feedback.py                # model-in-the-loop feedback simulation
+python scripts/paired_significance.py         # recompute the headline stat from committed CSVs
 ```
 
-## Tests, validation, and docs
+## Validation
 
-```bash
-pytest                          # full suite (run under the pinned environment for the float-exact tests)
-pytest -m "not pinned"          # the subset the CI compat matrix runs off-pins
-pytest --cov=cldd --cov-report=term-missing   # coverage of the public (synthetic-only) suite
-```
+`pytest` — 123 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
+reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
+compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing
+that needs it. Details, reproducibility, and troubleshooting:
+[docs/validation.md](docs/validation.md).
 
-Two project-specific validation gates beyond the unit tests:
+## Documentation
 
-```bash
-# Marginal-fidelity gate — SCM cohort vs real-data marginals; exit 0 = pass, 1 = fail/data-missing
-CLDD_DATA_DIR=/path/to/dataset python scripts/check_fidelity.py
-python scripts/check_fidelity.py --data-dir /path/to/dataset   # equivalent, explicit flag
+| Where | What |
+|---|---|
+| [docs/quickstart.md](docs/quickstart.md) | run the loop, the counterfactual eval, the fidelity report |
+| [docs/how-it-works.md](docs/how-it-works.md) | loop mechanics, diagnostics, feedback simulation, repo map |
+| [docs/configuration.md](docs/configuration.md) | every knob (`config.py`) and the one env var |
+| [docs/validation.md](docs/validation.md) | tests, gates, reproducibility, troubleshooting |
+| [docs/reject_inference.md](docs/reject_inference.md) | the four RI methods and their honest (modest) results |
+| [`FABLE.md`](FABLE.md) | **the accompanying article** — independent results & methodology assessment |
 
-# Reproduce the headline statistic from committed evidence
-python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_25.csv
-```
+Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_build/html`.
 
-This gate validates **univariate marginals only** — base rate, feed rate, missingness,
-per-feature p1/p50/p99, and categorical top-frequencies — so "fidelity PASSED" means *the
-modeled marginals match the real data*, **not** that the generator is faithful in the
-joint/causal distribution.
+## Status
 
-The real Intuit dataset is **private and not shipped**. Point the gate at your own copy
-(a directory containing `train.csv`) via the portable `CLDD_DATA_DIR` environment variable
-— e.g. `CLDD_DATA_DIR=/path/to/dataset python scripts/check_fidelity.py` — or the equivalent
-`--data-dir` flag; with the data absent it raises a clear error naming `CLDD_DATA_DIR` (it is
-**not** runnable on the synthetic-only quickstart). This is the **only** command that needs the
-real `train.csv`; everything else, including the whole test suite, runs on synthetic data alone.
-
-Because that dataset is private and absent on public CI, the fidelity gate's real-data path is
-never exercised there — so **coverage of `cldd/fidelity.py`'s data-loading branch is low on CI by
-design, not an oversight.** The `coverage (public suite)` CI job and the local `pytest --cov=cldd`
-command both measure only the synthetic-only suite.
-
-**Build the docs** (the Sphinx API reference; same strict mode Read the Docs uses):
-
-```bash
-pip install -e ".[docs]"
-sphinx-build -b html -W docs docs/_build/html   # -W: warnings are errors
-```
-
-CI runs three gates: a `pinned-repro` job (full suite under the exact pins), a cross-version /
-cross-OS `compat` matrix (`-m "not pinned"`), and a `docs` job (`sphinx-build -W`).
-
-### Reproducibility and the pinned tests
-
-`HistGradientBoosting` float output shifts across scikit-learn releases, so the committed
-numbers and the frozen byte-identity baseline were captured under a **pinned** environment —
-**scikit-learn 1.9.0 / numpy 2.4.6** (Python 3.14.2), recorded in `requirements-dev.txt`. To
-reproduce those exact figures:
-
-```bash
-pip install -r requirements-dev.txt && pip install -e . --no-deps
-```
-
-The **six** float-sensitive tests are marked `pinned` and reproduce **only** under those pins; the
-CI `compat` matrix deselects them with `-m "not pinned"`. The library deps stay as ranges so a
-plain `pip install` works alongside your own sklearn.
-
-## Configuration
-
-**The only environment variable is `CLDD_DATA_DIR`** (the marginal-fidelity gate's real-data
-location — see below). Everything else is code-level and explicit; per-run options are CLI
-flags on the drivers. `src/cldd/config.py` is the single source of truth:
-
-| Constant | Default | Meaning |
-|---|---|---|
-| `RANDOM_SEED` | `42` | base seed for all streams |
-| `TRAIN_SEED_OFFSET` | `1000` | disjoint-cohort offset for the no-leakage retrain lever |
-| `START_SEVERITY` / `SEVERITY_STEP` / `MAX_SEVERITY` | `0.0` / `0.2` / `1.0` | the severity grid the loop sweeps |
-| `MAX_ROUNDS` | `8` | frontier-search round cap |
-| `TARGET_DECLINED_ECE` | `0.10` | a round passes when corrected declined ECE ≤ this |
-| `DEFAULT_N_APPLICANTS` | `4000` | cohort size |
-| `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
-| `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
-
-The marginal-fidelity gate's real-data location is portable: set the **`CLDD_DATA_DIR`**
-environment variable to a directory containing `train.csv` (e.g. `CLDD_DATA_DIR=/path/to/dataset
-python scripts/check_fidelity.py`), or pass the equivalent `--data-dir /path/to/dataset` flag.
-The real Intuit dataset is private and not shipped, so with the data absent the gate raises a
-clear error naming `CLDD_DATA_DIR` rather than falling back to a machine-specific path.
-
-## Outputs
-
-All drivers write to `artifacts/`:
-
-| File | Produced by | Notes |
-|---|---|---|
-| `clue_frontier.{csv,png}` / `clue_frontier_scm.{csv,png}` | `run_clue.py` | frontier table + plot |
-| `seed_sweep.csv` | `run_seed_sweep.py` | 5-seed counterfactual certification (committed) |
-| `seed_sweep_25.csv`, `severity_curve.csv` | committed evidence | 25-seed sweep + collapse curve |
-| `exploration_frontier.csv` | `run_exploration_sweep.py` | frontier vs exploration budget |
-| `feedback_generations.csv` | `run_feedback.py` | per-generation feedback metrics |
-| `paired_significance.csv` | `paired_significance.py` | paired test on the 25-seed gap |
-
-`artifacts/` is gitignored **except** an allowlist of CSVs (and the sweep driver) committed so
-the figures quoted in `FABLE.md` are recomputable from source. PNGs are not committed.
-
-## Repository structure
-
-```
-.
-├── src/cldd/                 # the package (import as `cldd`)
-│   ├── config.py             # seeds, loan economics, severity grid, diagnostic thresholds
-│   ├── synthetic.py          # SyntheticBorrowerGenerator — flat world (drives the loop)
-│   ├── scm.py                # StructuralBorrowerGenerator — fitted SCM world
-│   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + IPW weights
-│   ├── eval_default.py       # measure: train-on-approved / score-on-truth
-│   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
-│   ├── correctors.py         # Corrector ABC + 4 pluggable levers (naive/reweight/retrain/explore)
-│   ├── feedback.py           # FeedbackLoop — model-in-the-loop selective labels
-│   ├── diagnostics.py        # observable positivity diagnostics
-│   ├── fidelity.py           # fidelity gate + FidelityReport (.get_score / .get_details)
-│   └── counterfactual.py     # counterfactual query set + estimator grading
-├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
-├── tests/                    # pytest suite (90 tests; 5 marked `pinned`)
-├── docs/                     # Sphinx API reference (builds with sphinx-build -W; RTD-ready)
-├── examples/                 # runnable quickstart (synthetic-only) + its README
-├── CONTRIBUTING.md           # dev setup + how to add a correction lever
-├── pyproject.toml            # package metadata + dependency ranges (provenance pins in requirements-dev.txt)
-├── requirements-dev.txt      # pinned dev environment (the provenance pins)
-├── FABLE.md                  # independent results & methodology assessment
-└── SESSION_HANDOFF.md        # architecture / handoff notes
-```
-
-## Roadmap
-
-CLDD is being developed from a single-author research harness toward a library other
-practitioners can adopt and contribute to. Status is explicit: **Shipped** is in the tree and
-tested; **Planned** is proposed, not yet built.
-
-- **[Shipped] Adoption baseline.** MIT `LICENSE`, CI (`pinned-repro` + cross-version/OS
-  `compat` + `docs` jobs), `CITATION.cff` + BibTeX, range dependencies with reproducibility
-  pins preserved in `requirements-dev.txt`.
-- **[Shipped] A pluggable correction interface.** The `improve_mode` string is backed by a
-  `Corrector` ABC (`cldd.correctors`): *adding a lever is adding a class*
-  (`SelectiveLabelsLoop(correctors=[...])`), the way off-policy-evaluation libraries register
-  interchangeable estimators. The legacy `improve_mode` / `exploration_rate` API is byte-
-  identical, and `RoundResult.corrections` exposes the general name→metrics map.
-- **[Shipped] A first-class marginal-fidelity report.** `cldd.fidelity.FidelityReport` gained
-  SDMetrics-style `.get_score()` (0–1) and `.get_details()` (per-check DataFrame) accessors, so
-  SCM-vs-real drift is drill-downable, not just a pass/fail bit — scoped to univariate marginals
-  (base rate, feed rate, missingness, per-feature quantiles, categorical top-frequencies), not
-  the joint/causal distribution.
-- **[Shipped] Docs and a runnable quickstart.** [`examples/quickstart.py`](examples/quickstart.py)
-  runs generate → measure → correct → frontier end-to-end and demos a custom lever; the Sphinx
-  API reference under `docs/` builds clean under `sphinx-build -W` (RTD config in
-  `.readthedocs.yaml`, enforced by the CI `docs` job) and is ready to host.
-- **[Planned] PyPI release.** Publish `closed-loop-default-detection` so `pip install` works
-  without a clone.
-- **[Shipped] A reject-inference module.** Four classic methods (reclassification,
-  score-band augmentation, fuzzy augmentation, parcelling) in `cldd.reject_inference`, as
-  `Corrector`s **graded against planted truth on a held-out declined fold** — not a
-  run-on-your-data API (that would remove the oracle). `scripts/run_reject_inference.py`
-  writes `artifacts/reject_inference_frontier.csv`. The honest result: RI lift over the naive
-  detector is modest at best and can be negative, and as severity rises the unobserved
-  confounder defeats every observational method — matching Kozodoi et al. (2025), who find
-  correcting the *evaluation* bias matters more than the imputation. See
-  [`docs/reject_inference.md`](docs/reject_inference.md).
-
-## Development notes
-
-- **Determinism is an invariant.** Every run is byte-identical per seed; all randomness goes
-  through seeded `numpy.random.Generator` streams, and levers use dedicated RNG stream tags
-  (`config.EXPLORE_STREAM_*`) so they can't shift a generator's stream. (A custom `Corrector`
-  must likewise seed from `ctx`, not a global RNG.)
-- **No-leakage discipline.** The retrain lever fits on a disjoint cohort
-  (`RANDOM_SEED + TRAIN_SEED_OFFSET + iteration`); the naive PD model is fit on approved rows
-  only. Don't collapse these.
-- **Two generators, one contract.** `scm.py` returns a *superset* of the loop's cohort dict, so
-  `SelectiveLabelsLoop` runs on either world. Keep that contract stable.
-- **The marginal-fidelity gate is the guard.** It checks univariate marginals only (not the
-  joint/causal structure), so any change to SCM marginals must keep `check_fidelity.py` green,
-  or the tolerances must be revisited deliberately.
-- **`src/` layout.** Scripts inject `src/` onto `sys.path`, so they run without installing, but
-  `pip install -e .` is recommended for tests and imports.
-
-## Troubleshooting
-
-- **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
-  exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
-  the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the suite is 90/90. See `FABLE.md` §8.
-- **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
-  (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
-- **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not
-  shipped — set `CLDD_DATA_DIR=/path/to/dataset` (or pass `--data-dir /path/to/dataset`), a
-  directory containing `train.csv`. The gate is not runnable on the synthetic-only quickstart.
-- **`run_seed_sweep.py` is slow / memory-heavy.** By design it launches one subprocess per
-  (seed, severity) eval; use `--quick` for a seed-42 smoke run.
-- **No plot window appears.** Scripts use the headless `Agg` backend and write PNGs to
-  `artifacts/`; there is nothing to display interactively.
-
-## Project background
-
-CLDD began as a validation harness for the **Intuit TechWeek SMB Underwriting Challenge**,
-where selective labels are the central difficulty. It is a *validation harness*, not a
-submission: it does not produce or alter the challenge's submission files, and wiring its
-conclusions into a real submission or production system is a separate step. The independent
-results-and-methodology assessment lives in [`FABLE.md`](FABLE.md); deeper architecture and the
-SCM design are in [`SESSION_HANDOFF.md`](SESSION_HANDOFF.md).
+`0.1.0` **alpha**, changelog in [CHANGELOG.md](CHANGELOG.md). Shipped: the loop, both worlds,
+all levers, the fidelity gate, the sklearn estimator, CI on three gates. Planned: PyPI
+release. CLDD began as a validation harness for the Intuit TechWeek SMB Underwriting
+Challenge; it is not a submission and does not alter challenge files.
 
 ## Citation
 
-If you use CLDD, please cite it. Metadata lives in [`CITATION.cff`](CITATION.cff) (GitHub's
-"Cite this repository" reads it); the equivalent BibTeX:
+Metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" reads it):
 
 ```bibtex
 @software{pazooki_cldd_2026,

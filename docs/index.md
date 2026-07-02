@@ -5,15 +5,19 @@ modeling under **selective labels** and reports the model's honest **operating
 frontier** — the highest selection severity at which calibration on the *declined*
 subpopulation still holds.
 
-This site is the API reference. For the narrative overview, the methodology
-assessment, and how to run the drivers, see the project
-[README](https://github.com/hossainpazooki/closed-loop-default-detection#readme).
+The [README](https://github.com/hossainpazooki/closed-loop-default-detection#readme)
+is the short, results-first tour; this site carries the full documentation. The
+accompanying article — the independent results-and-methodology assessment — is
+[`FABLE.md`](https://github.com/hossainpazooki/closed-loop-default-detection/blob/master/FABLE.md).
 
 ```{toctree}
 :maxdepth: 2
 :caption: Contents
 
 quickstart
+how-it-works
+configuration
+validation
 api
 reject_inference
 ```
