@@ -43,7 +43,12 @@ accompanying article, [`FABLE.md`](FABLE.md).
 
 ## Install
 
-> **Not on PyPI yet** (planned). Install from source; the import name is **`cldd`**.
+```bash
+pip install closed-loop-default-detection
+```
+
+The import name is **`cldd`**. For development (tests, docs, the committed evidence),
+install from source:
 
 ```bash
 git clone https://github.com/hossainpazooki/closed-loop-default-detection.git
@@ -156,10 +161,11 @@ Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_b
 
 ## Status
 
-`0.1.0` **alpha**, changelog in [CHANGELOG.md](CHANGELOG.md). Shipped: the loop, both worlds,
-all levers, the fidelity gate, the sklearn estimator, CI on three gates. Planned: PyPI
-release. CLDD began as a validation harness for the Intuit TechWeek SMB Underwriting
-Challenge; it is not a submission and does not alter challenge files.
+`0.1.0` **alpha** on [PyPI](https://pypi.org/project/closed-loop-default-detection/),
+changelog in [CHANGELOG.md](CHANGELOG.md). Shipped: the loop, both worlds, all levers, the
+fidelity gate, the sklearn estimator, CI on three gates. CLDD began as a validation harness
+for the Intuit TechWeek SMB Underwriting Challenge; it is not a submission and does not
+alter challenge files.
 
 ## Citation
 

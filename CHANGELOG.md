@@ -3,9 +3,9 @@
 All notable changes to `closed-loop-default-detection` (import name `cldd`) are
 recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
-initial **alpha**; it is not yet published to PyPI (install from source).
+initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
-## [0.1.0] — unreleased (alpha)
+## [0.1.0] — 2026-07-03 (alpha)
 
 Initial alpha of the selective-labels default-detection harness.
 
