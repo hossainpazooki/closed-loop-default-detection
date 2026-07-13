@@ -25,6 +25,12 @@ reject_inference
 ## Install
 
 ```bash
+pip install closed-loop-default-detection    # from PyPI; import name is `cldd`
+```
+
+For development (tests, docs, the committed evidence), install from source:
+
+```bash
 pip install -e ".[dev]"     # editable install + pytest
 ```
 

@@ -13,6 +13,10 @@ drivers. `src/cldd/config.py` is the single source of truth:
 | `TARGET_DECLINED_ECE` | `0.10` | a round passes when corrected declined ECE ≤ this |
 | `DEFAULT_N_APPLICANTS` | `4000` | cohort size |
 | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
+| `TERM_DAYS` / `APR` / `ORIGINATION_FEE_RATE` | `60` / `0.35` / `0.03` | loan economics of the synthetic daily-ACH term loan |
+| `POLICY_PD_THRESHOLD` | `0.5` | PD cutoff used **only** for the detection-F1 diagnostic (approve/decline economics are out of scope) |
+| `EXPLORE_STREAM_LOOP` / `EXPLORE_STREAM_FEEDBACK` | — | dedicated RNG stream tags so the exploration draw can never shift a generator's stream |
+| `RI_*` | — | reject-inference knobs: held-out eval fraction, score bands, parcelling uplift, RNG streams |
 | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |
 
 The marginal-fidelity gate's real-data location is portable: set the **`CLDD_DATA_DIR`**
