@@ -63,6 +63,11 @@ The **six** float-sensitive tests are marked `pinned` and reproduce **only** und
 the CI `compat` matrix deselects them with `-m "not pinned"`. The library deps stay as ranges
 so a plain `pip install` works alongside your own sklearn.
 
+The model stack is deliberately **scikit-learn-only** (`HistGradientBoostingClassifier` +
+isotonic calibration) as a portability decision: the harness behaves identically in every
+environment it runs in, with no compiled extras to install. LightGBM / XGBoost are a possible
+future model tier, not a current dependency.
+
 ## Troubleshooting
 
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
