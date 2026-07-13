@@ -1,5 +1,5 @@
 """Multi-seed counterfactual sweep: the committed driver behind the 5-seed
-certification quoted in FABLE.md and the submission writeup.
+certification quoted in docs/assessment.md.
 
 Runs run_counterfactual_eval for each (seed, severity) in ONE SUBPROCESS PER
 EVAL -- two evals in a single process have been observed to exhaust memory --

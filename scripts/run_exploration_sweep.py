@@ -2,7 +2,7 @@
 
     python scripts/run_exploration_sweep.py [--quick]
 
-Lesson behind it (FABLE.md): beyond severity 0.4 the unobserved confounder
+Lesson behind it (docs/assessment.md): beyond severity 0.4 the unobserved confounder
 defeats every observational correction — IPW and g-computation fail for the
 same structural reason. Exploration (randomly approving an eps-fraction of
 declines) is the one lever that buys *identification* instead of reweighting:

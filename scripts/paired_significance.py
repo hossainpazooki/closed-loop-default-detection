@@ -1,6 +1,6 @@
 """Paired significance test for the strong-cohort g-computation gap.
 
-This script hardens FABLE.md's informal "~8 SE above zero" claim for the
+This script hardens docs/assessment.md's informal "~8 SE above zero" claim for the
 severity-0.4 counterfactual into a proper paired hypothesis test. For each
 severity it takes the 25-seed ``strong_gap`` column (naive_strong minus
 gcomp_strong, i.e. how much the g-computation correction reduces strong-cohort

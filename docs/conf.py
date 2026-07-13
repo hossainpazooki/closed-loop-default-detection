@@ -50,10 +50,11 @@ intersphinx_mapping = {
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 master_doc = "index"
-# RECON_FINDINGS.md is an internal recon/status doc, not part of the published
-# API reference; it lives in docs/ for convenience but is excluded from the Sphinx
-# build so it does not trip the strict `-W` toc.not_included gate.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md"]
+# RECON_FINDINGS.md is an internal recon/status doc and assessment.md is the
+# dated accompanying article (a provenance snapshot); both live in docs/ for
+# convenience but are excluded from the Sphinx build so they do not trip the
+# strict `-W` toc.not_included gate.
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md"]
 
 html_theme = "furo"
 html_title = "closed-loop-default-detection"

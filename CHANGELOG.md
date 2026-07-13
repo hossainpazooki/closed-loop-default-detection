@@ -13,6 +13,9 @@ initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-defa
   `artifacts/clue_frontier*.{csv,png}` → `artifacts/loop_frontier*.{csv,png}`
   (history-preserving renames; CSV contents are byte-identical). Module docstrings
   and package metadata no longer reference the originating project.
+- Moved the accompanying article `FABLE.md` to `docs/assessment.md` (history-preserving
+  move; contents unchanged — it is a dated provenance snapshot, excluded from the
+  Sphinx build like the other dated records).
 
 ## [0.1.0] — 2026-07-03 (alpha)
 

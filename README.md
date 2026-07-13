@@ -39,7 +39,7 @@ an unverifiable score — is the deliverable.
 
 Reproduce the headline from committed evidence: `python scripts/paired_significance.py`.
 The full independent assessment (methodology, all numbers, what didn't hold) is the
-accompanying article, [`FABLE.md`](FABLE.md).
+accompanying article, [`docs/assessment.md`](docs/assessment.md).
 
 ## Install
 
@@ -155,7 +155,7 @@ that needs it. Details, reproducibility, and troubleshooting:
 | [docs/configuration.md](docs/configuration.md) | every knob (`config.py`) and the one env var |
 | [docs/validation.md](docs/validation.md) | tests, gates, reproducibility, troubleshooting |
 | [docs/reject_inference.md](docs/reject_inference.md) | the four RI methods and their honest (modest) results |
-| [`FABLE.md`](FABLE.md) | **the accompanying article** — independent results & methodology assessment |
+| [`docs/assessment.md`](docs/assessment.md) | **the accompanying article** — independent results & methodology assessment (dated snapshot) |
 
 Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_build/html`.
 

@@ -1,8 +1,8 @@
 """Closing the loop for real: the model's own decisions create its training data.
 
 ``SelectiveLabelsLoop`` measures a *static* question — how well levers correct
-selection imposed by a fixed prior policy. But the lesson of the hackathon
-harness (FABLE.md) is dynamic: once a PD model is deployed, **its own approvals
+selection imposed by a fixed prior policy. But the lesson of the accompanying
+article (docs/assessment.md) is dynamic: once a PD model is deployed, **its own approvals
 decide which outcomes the next model generation gets to learn from**. That
 feedback has a structural property no severity knob reaches: a deterministic
 model policy (fund the lowest-PD fraction) makes selection a *function* of the

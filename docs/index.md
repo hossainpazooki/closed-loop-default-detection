@@ -8,7 +8,7 @@ subpopulation still holds.
 The [README](https://github.com/hossainpazooki/closed-loop-default-detection#readme)
 is the short, results-first tour; this site carries the full documentation. The
 accompanying article — the independent results-and-methodology assessment — is
-[`FABLE.md`](https://github.com/hossainpazooki/closed-loop-default-detection/blob/master/FABLE.md).
+[`docs/assessment.md`](https://github.com/hossainpazooki/closed-loop-default-detection/blob/master/docs/assessment.md).
 
 ```{toctree}
 :maxdepth: 2

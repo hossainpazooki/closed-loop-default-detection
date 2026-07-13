@@ -63,7 +63,7 @@ All drivers write to `artifacts/`:
 | `paired_significance.csv` | `paired_significance.py` | paired test on the 25-seed gap |
 
 `artifacts/` is gitignored **except** an allowlist of CSVs (and the sweep driver) committed so
-the figures quoted in `FABLE.md` are recomputable from source. PNGs are not committed.
+the figures quoted in `docs/assessment.md` are recomputable from source. PNGs are not committed.
 
 ## Repository structure
 
@@ -84,12 +84,11 @@ the figures quoted in `FABLE.md` are recomputable from source. PNGs are not comm
 │   └── counterfactual.py     # counterfactual query set + estimator grading
 ├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
 ├── tests/                    # pytest suite (123 tests; 6 marked `pinned`)
-├── docs/                     # this Sphinx site (builds with sphinx-build -W; RTD-ready)
+├── docs/                     # this Sphinx site (sphinx-build -W; RTD-ready) + assessment.md, the dated article
 ├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── CONTRIBUTING.md           # dev setup + how to add a correction lever
 ├── pyproject.toml            # package metadata + dependency ranges (provenance pins in requirements-dev.txt)
 ├── requirements-dev.txt      # pinned dev environment (the provenance pins)
-├── FABLE.md                  # the accompanying article: independent results & methodology assessment
 └── SESSION_HANDOFF.md        # architecture / handoff notes
 ```
 

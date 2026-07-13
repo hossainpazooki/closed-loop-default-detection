@@ -1,6 +1,6 @@
 """Deployable positivity/overlap diagnostics — the observable frontier signal.
 
-Lesson from the hackathon harness (FABLE.md): the operating frontier was measured
+Lesson from the accompanying article (docs/assessment.md): the operating frontier was measured
 against *planted* truth (declined-cohort ECE), which a real lender can never
 compute — so the frontier, as measured, is not deployable knowledge. What a
 lender CAN compute is how pathological the selection itself looks:

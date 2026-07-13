@@ -1,5 +1,5 @@
 # Artifacts produced by the loop driver (plots and scratch stay ignored, but
-# the CSVs cited as evidence by FABLE.md and the README are tracked —
+# the CSVs cited as evidence by the README and docs/assessment.md are tracked —
 # a clone must be able to recompute the quoted numbers from committed sources)
 artifacts/*
 !artifacts/loop_frontier.csv

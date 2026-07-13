@@ -3,7 +3,7 @@ calibration as selection severity rises?
 
     python scripts/run_reject_inference.py [--quick] [--n N]
 
-Lesson behind it (FABLE.md + the reject-inference literature): reject inference
+Lesson behind it (docs/assessment.md + the reject-inference literature): reject inference
 imputes/extrapolates labels for the declined applicants, but it can only correct
 selection that the *observed* features explain. The harness routes part of the
 selection through an unobserved confounder, so as severity rises every

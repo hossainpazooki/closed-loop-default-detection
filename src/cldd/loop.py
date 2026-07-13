@@ -25,7 +25,7 @@ Each round:
    with *exact* labeled-propensity weights (policy approvals are labeled with
    probability 1, explored declines with probability ``eps``). Unlike the IPW
    lever, these weights are known by construction rather than fitted, so the
-   unobserved confounder — the mechanism FABLE.md identifies behind both
+   unobserved confounder — the mechanism docs/assessment.md identifies behind both
    frontier failures — cannot leak into them. This is the only lever that buys
    *identification* instead of reweighting what is already identified, at an
    explicit cost the lender can see: the explored loans' realized defaults.
