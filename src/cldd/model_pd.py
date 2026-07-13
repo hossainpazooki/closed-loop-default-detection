@@ -1,7 +1,6 @@
 """Minimal but real calibrated probability-of-default model + IPW weights.
 
-This is the detector the closed loop drives — the analog of the cross-omics
-detector in ``upstream-label-correction``. Two things matter here:
+This is the detector the closed loop drives. Two things matter here:
 
   1. **Calibration**, not just ranking: the closed loop scores calibration error
      on the declined subpopulation, so the model must emit honest probabilities.

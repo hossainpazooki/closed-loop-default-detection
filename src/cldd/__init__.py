@@ -1,7 +1,7 @@
-"""Closed-loop default-rate detection — a CLUE-style harness for selective labels.
+"""Closed-loop default-rate detection — a selective-labels validation harness.
 
 generate (``synthetic``) -> measure (``eval_default``) -> improve/frontier
-(``loop``). See README.md for the CLUE mapping and how to run.
+(``loop``). See README.md for how to run.
 """
 
 from __future__ import annotations

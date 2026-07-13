@@ -1,13 +1,12 @@
-"""Driver: run the closed loop and emit evidence for the Deliverable D writeup.
+"""Driver: run the closed loop and emit the operating-frontier evidence.
 
-    python scripts/run_clue.py [--generator {flat,scm}]
+    python scripts/run_loop.py [--generator {flat,scm}]
 
 Runs ``SelectiveLabelsLoop(improve_mode="both")``, writes
-``artifacts/clue_frontier.csv`` and ``artifacts/clue_frontier.png`` (or
-``clue_frontier_scm.csv`` / ``clue_frontier_scm.png`` with ``--generator scm``,
-so the flat artifacts are never overwritten), and prints a short summary suitable
-for pasting into the writeup's §3 (causal), §4 (calibration), and §5
-(limitations).
+``artifacts/loop_frontier.csv`` and ``artifacts/loop_frontier.png`` (or
+``loop_frontier_scm.csv`` / ``loop_frontier_scm.png`` with ``--generator scm``,
+so the flat artifacts are never overwritten), and prints a short summary of
+where the frontier landed and why.
 """
 
 from __future__ import annotations
@@ -109,8 +108,8 @@ def main() -> None:
 
     df = pd.DataFrame(_rows(result))
     suffix = "_scm" if args.generator == "scm" else ""
-    csv_path = config.ARTIFACTS_DIR / f"clue_frontier{suffix}.csv"
-    png_path = config.ARTIFACTS_DIR / f"clue_frontier{suffix}.png"
+    csv_path = config.ARTIFACTS_DIR / f"loop_frontier{suffix}.csv"
+    png_path = config.ARTIFACTS_DIR / f"loop_frontier{suffix}.png"
     df.to_csv(csv_path, index=False)
     _plot(df, result.target_declined_ece, png_path)
 
@@ -125,7 +124,7 @@ def main() -> None:
     if best is not None:
         print(f"Best round: severity={best.selection_severity}, declined ECE={best.control_metric:.4f}")
     print()
-    print("Writeup hook (Deliverable D sections 3/4/5):")
+    print("Reading:")
     if frontier is None:
         print("  - Even at the mildest selection regime the model failed the calibration target;")
         print("    the declined subpopulation is mis-scored from the start (see naive_declined_mean_pd).")

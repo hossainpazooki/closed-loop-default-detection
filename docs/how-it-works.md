@@ -54,7 +54,7 @@ All drivers write to `artifacts/`:
 
 | File | Produced by | Notes |
 |---|---|---|
-| `clue_frontier.{csv,png}` / `clue_frontier_scm.{csv,png}` | `run_clue.py` | frontier table + plot |
+| `loop_frontier.{csv,png}` / `loop_frontier_scm.{csv,png}` | `run_loop.py` | frontier table + plot |
 | `seed_sweep.csv` | `run_seed_sweep.py` | 5-seed counterfactual certification (committed) |
 | `seed_sweep_25.csv`, `severity_curve.csv` | committed evidence | 25-seed sweep + collapse curve |
 | `exploration_frontier.csv` | `run_exploration_sweep.py` | frontier vs exploration budget |

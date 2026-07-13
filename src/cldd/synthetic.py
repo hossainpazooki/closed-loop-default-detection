@@ -1,10 +1,9 @@
 """Synthetic SMB applicant cohort generator with planted default ground truth.
 
-This is the **generate** stage of the closed loop and the analog of
-``upstream-label-correction/core/synthetic.py``. Where that planted molecular
-mislabels, this plants a true ``default_flag`` for *every* applicant and then
-hides the labels through a prior-underwriter approval policy — exactly the
-**selective-labels** structure of the Intuit SMB challenge.
+This is the **generate** stage of the closed loop: it plants a true
+``default_flag`` for *every* applicant and then hides the labels through a
+prior-underwriter approval policy — exactly the **selective-labels** structure
+of the Intuit SMB challenge.
 
 Two ground-truth facts are planted and known only to the harness:
 
@@ -98,7 +97,7 @@ class SyntheticBorrowerGenerator:
         self.rng = np.random.Generator(np.random.PCG64(seed))
 
     # ------------------------------------------------------------------ #
-    # Presets (mirror upstream's unit/benchmark)
+    # Presets
     # ------------------------------------------------------------------ #
 
     @classmethod

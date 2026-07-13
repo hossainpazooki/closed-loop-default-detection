@@ -21,7 +21,7 @@ hides labels the way real approval policies do, and grades every correction agai
 
 The loop escalates selection severity until correction fails and reports the **operating
 frontier** — the last severity at which declined-cohort calibration still holds (target
-ECE ≤ 0.10). From the committed runs (`artifacts/clue_frontier*.csv`, seed 42):
+ECE ≤ 0.10). From the committed runs (`artifacts/loop_frontier*.csv`, seed 42):
 
 | Selection severity | 0.0 | 0.2 | 0.4 | 0.6 |
 |---|---|---|---|---|
@@ -129,7 +129,7 @@ scores = cross_val_score(CalibratedPDClassifier(random_state=42), X, y, scoring=
 Each driver runs without install (adds `src/` to the path) and writes to `artifacts/`:
 
 ```bash
-python scripts/run_clue.py                    # the closed loop → frontier table + plot (--generator scm for the SCM world)
+python scripts/run_loop.py                    # the closed loop → frontier table + plot (--generator scm for the SCM world)
 python scripts/run_seed_sweep.py --quick      # counterfactual certification (drop --quick for all seeds)
 python scripts/run_reject_inference.py        # reject-inference levers vs the frontier
 python scripts/run_exploration_sweep.py       # frontier vs exploration budget

@@ -5,6 +5,15 @@ recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
 initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
+## [Unreleased]
+
+### Changed
+- Renamed the loop driver and its artifacts to drop the pre-release lineage naming:
+  `scripts/run_clue.py` → `scripts/run_loop.py`, and the committed
+  `artifacts/clue_frontier*.{csv,png}` → `artifacts/loop_frontier*.{csv,png}`
+  (history-preserving renames; CSV contents are byte-identical). Module docstrings
+  and package metadata no longer reference the originating project.
+
 ## [0.1.0] — 2026-07-03 (alpha)
 
 Initial alpha of the selective-labels default-detection harness.

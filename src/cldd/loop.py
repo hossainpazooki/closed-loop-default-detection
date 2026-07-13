@@ -1,7 +1,6 @@
-"""CLUE-style closed loop for selective-labels default detection.
+"""Closed loop for selective-labels default detection.
 
-Ports ``upstream-label-correction/clue/loop.py`` to the SMB lending domain. Each
-round:
+Each round:
 
 1. **Generate** a synthetic cohort at the round's ``selection_severity`` (planted
    default ground truth for every applicant; outcomes hidden for declines). The

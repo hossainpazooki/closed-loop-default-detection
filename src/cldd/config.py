@@ -24,8 +24,7 @@ RANDOM_SEED = 42
 
 # Disjoint train-cohort offset for the retrain lever. Large enough that train
 # seeds (RANDOM_SEED + TRAIN_SEED_OFFSET + iteration) never collide with measure
-# seeds (RANDOM_SEED + iteration). This is the no-leakage discipline ported from
-# upstream-label-correction/clue/loop.py.
+# seeds (RANDOM_SEED + iteration).
 TRAIN_SEED_OFFSET = 1000
 
 # --------------------------------------------------------------------------- #

@@ -9,8 +9,7 @@ selection bias it exposes.
 
 The reusable pieces here (``fit_observed_model`` and ``score_pd_detection``) are
 shared with ``loop.py`` so the "measure" and "improve" stages score detection
-identically — mirroring the building blocks shared in
-``upstream-label-correction/evals/mislabel_detection.py``.
+identically.
 """
 
 from __future__ import annotations
