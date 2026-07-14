@@ -59,6 +59,10 @@ def main() -> None:
                         ),
                         "n_explored": r.n_explored,
                         "explored_defaults": r.explored_defaults,
+                        # v2: the exploration budget priced in dollars (cldd.emp
+                        # economics on the planted rows). Positive = the bought
+                        # labels cost money net. Reported, never a gate input.
+                        "exploration_cost": round(r.exploration_cost, 2),
                         "diag_flagged": r.diagnostics.flagged,
                         "passed": r.passed,
                         "frontier": res.frontier_severity,

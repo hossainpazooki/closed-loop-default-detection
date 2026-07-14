@@ -4,6 +4,7 @@
 artifacts/*
 !artifacts/loop_frontier.csv
 !artifacts/loop_frontier_scm.csv
+!artifacts/frontier_sweep.csv
 !artifacts/seed_sweep.csv
 !artifacts/seed_sweep_25.csv
 !artifacts/severity_curve.csv

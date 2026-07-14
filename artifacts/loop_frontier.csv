@@ -1,5 +1,5 @@
-iteration,selection_severity,base_rate,approval_rate,naive_declined_ece,naive_declined_mean_pd,naive_declined_base_rate,naive_declined_auc,control_metric,passed,reweight_declined_ece,reweight_declined_mean_pd,retrain_declined_ece,retrain_train_seed,diag_propensity_auc,diag_ess_ratio,diag_below_floor,diag_flagged
-0,0.0,0.1735,0.6,0.0206,0.1694,0.175,0.7617,0.0204,True,0.0204,0.1667,0.0258,1042,0.7785,0.9891,0.0,False
-1,0.2,0.1722,0.6,0.045,0.19,0.205,0.7152,0.0384,True,0.0384,0.1977,0.0537,1043,0.7569,0.9739,0.0,False
-2,0.4,0.1698,0.6,0.1079,0.1546,0.2625,0.7002,0.0864,True,0.0864,0.1786,0.0922,1044,0.7979,0.919,0.0013,False
-3,0.6,0.1683,0.6,0.1608,0.1336,0.2944,0.61,0.154,False,0.154,0.1403,0.1811,1045,0.8769,0.8275,0.02,True
+iteration,selection_severity,base_rate,approval_rate,naive_declined_ece,naive_declined_mean_pd,naive_declined_base_rate,naive_declined_auc,control_metric,passed,reweight_declined_ece,reweight_declined_mean_pd,retrain_declined_ece,retrain_train_seed,diag_propensity_auc,diag_ess_ratio,diag_below_floor,diag_flagged,naive_declined_empc,naive_declined_emp_h,reweight_declined_empc,reweight_declined_emp_h,retrain_declined_empc,retrain_declined_emp_h,naive_declined_empc_fraction,naive_declined_emp_h_fraction,naive_declined_f1_emp_cutoff,naive_all_empc,naive_all_emp_h
+0,0.0,0.1735,0.6,0.0206,0.1694,0.175,0.7617,0.0204,True,0.0204,0.1667,0.0258,1042,0.7785,0.9891,0.0,False,0.010649,,0.01129,,0.011459,,0.897547,,0.373874,0.014771,
+1,0.2,0.1722,0.6,0.045,0.19,0.205,0.7152,0.0384,True,0.0384,0.1977,0.0537,1043,0.7569,0.9739,0.0,False,0.013441,,0.012723,,0.012619,,0.89214,,0.315369,0.017008,
+2,0.4,0.1698,0.6,0.1079,0.1546,0.2625,0.7002,0.0864,True,0.0864,0.1786,0.0922,1044,0.7979,0.919,0.0013,False,0.022269,,0.021009,,0.020591,,0.846546,,0.39039,0.012189,
+3,0.6,0.1683,0.6,0.1608,0.1336,0.2944,0.61,0.154,False,0.154,0.1403,0.1811,1045,0.8769,0.8275,0.02,True,0.02104,,0.020127,,0.021936,,0.79178,,0.370647,0.011293,

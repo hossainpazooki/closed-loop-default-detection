@@ -27,6 +27,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from cldd import SelectiveLabelsLoop, config  # noqa: E402
 
 
+def _r6(x):
+    """None-safe round to 6 decimals (EMP columns are None where inapplicable)."""
+    return None if x is None else round(x, 6)
+
+
 def _rows(result) -> list[dict]:
     rows = []
     for r in result.rounds:
@@ -58,12 +63,34 @@ def _rows(result) -> list[dict]:
             row["diag_ess_ratio"] = round(r.diagnostics.ess_ratio, 4)
             row["diag_below_floor"] = round(r.diagnostics.unfunded_below_floor, 4)
             row["diag_flagged"] = r.diagnostics.flagged
+
+        # EMP columns (v2 reporting axis) -- appended AFTER all existing columns,
+        # never inserted among them, so v1 column identity/order is preserved.
+        for lever_name, lever in (
+            ("naive", r.naive),
+            ("reweight", r.reweight),
+            ("retrain", r.retrain),
+            ("explore", r.explore),
+        ):
+            if lever is not None:
+                row[f"{lever_name}_declined_empc"] = _r6(lever.declined_empc)
+                row[f"{lever_name}_declined_emp_h"] = _r6(lever.declined_emp_h)
+        row["naive_declined_empc_fraction"] = _r6(r.naive.declined_empc_fraction)
+        row["naive_declined_emp_h_fraction"] = _r6(r.naive.declined_emp_h_fraction)
+        row["naive_declined_f1_emp_cutoff"] = _r6(r.naive.declined_f1_emp_cutoff)
+        row["naive_all_empc"] = _r6(r.naive.all_empc)
+        row["naive_all_emp_h"] = _r6(r.naive.all_emp_h)
+        if r.explore is not None:
+            row["exploration_cost"] = round(r.exploration_cost, 2)
         rows.append(row)
     return rows
 
 
 def _plot(df: pd.DataFrame, target_ece: float, out_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(8, 5))
+    # Two vertically stacked panels sharing the severity x-axis: the existing
+    # ECE panel on top (unchanged), an EMP-vs-severity panel added below it.
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+
     ax.plot(df["selection_severity"], df["naive_declined_ece"], marker="o", label="naive (train-on-approved)")
     if "reweight_declined_ece" in df:
         ax.plot(df["selection_severity"], df["reweight_declined_ece"], marker="s", label="IPW reweight")
@@ -76,6 +103,25 @@ def _plot(df: pd.DataFrame, target_ece: float, out_path: Path) -> None:
     ax.set_ylabel("declined-subpopulation calibration error (ECE)")
     ax.set_title("Operating frontier: PD calibration on the applicants real data can't score")
     ax.legend()
+
+    if "naive_declined_empc" in df:
+        ax2.plot(df["selection_severity"], df["naive_declined_empc"], marker="o", label="naive EMPC")
+    if "reweight_declined_empc" in df:
+        ax2.plot(df["selection_severity"], df["reweight_declined_empc"], marker="s", label="IPW reweight EMPC")
+    if "naive_declined_emp_h" in df:
+        ax2.plot(
+            df["selection_severity"], df["naive_declined_emp_h"],
+            marker="o", linestyle="--", label="naive EMP (harness)",
+        )
+    if "reweight_declined_emp_h" in df:
+        ax2.plot(
+            df["selection_severity"], df["reweight_declined_emp_h"],
+            marker="s", linestyle="--", label="IPW reweight EMP (harness)",
+        )
+    ax2.set_xlabel("selection severity  (0 = random approval, 1 = approval tracks true risk)")
+    ax2.set_ylabel("expected maximum profit (fraction of mean exposure)")
+    ax2.legend()
+
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
