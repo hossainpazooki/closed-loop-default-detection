@@ -59,6 +59,19 @@ TARGET_DECLINED_ECE = 0.10
 DEFAULT_N_APPLICANTS = 4000
 
 # --------------------------------------------------------------------------- #
+# EMP reporting layer (cldd.emp) — v2 measurement axis, never loop control
+# --------------------------------------------------------------------------- #
+# Literature EMPC prior. Verified against the primary source before entry
+# (2026-07-13 spike): Verbraken, Bravo, Weber & Baesens (2014), EJOR
+# 238(2):505-513 — h(lambda) = p0*delta(0) + p1*delta(1) + (1-p0-p1)*U(0,1),
+# constant ROI, computed over the ROC convex hull (paper Eqs. 13/15). The
+# defaults are the benchmark-standard CRAN EMP::empCreditScoring values, so
+# empc columns are comparable to the published literature.
+EMPC_P0 = 0.55       # P(lambda = 0): full recovery
+EMPC_P1 = 0.10       # P(lambda = 1): total loss
+EMPC_ROI = 0.2644    # per-loan return on investment, fraction of principal
+
+# --------------------------------------------------------------------------- #
 # Observable positivity-diagnostic thresholds (cldd.diagnostics)
 # --------------------------------------------------------------------------- #
 # Calibrated on this harness's severity grids (flat + SCM, seeds {7, 42, 2026},

@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 try:  # pyproject `version` is the single source of truth (read from installed metadata)
     __version__ = _pkg_version("closed-loop-default-detection")
 except PackageNotFoundError:  # running from a source tree with no install
-    __version__ = "0.1.0"
+    __version__ = "0.2.0"
 
 from .correctors import (
     CorrectionOutcome,
@@ -35,6 +35,13 @@ from .reject_inference import (
     ParcellingCorrector,
     ReclassificationCorrector,
     RejectInferenceCorrector,
+)
+from .emp import (
+    EMPCParams,
+    EMPResult,
+    LoanEconomics,
+    emp_harness,
+    empc_literature,
 )
 from .eval_default import PdDetectionResult, fit_observed_model, score_pd_detection
 from .model_pd import CalibratedPDClassifier, CalibratedPDModel
@@ -87,6 +94,11 @@ __all__ = [
     "PdDetectionResult",
     "fit_observed_model",
     "score_pd_detection",
+    "EMPCParams",
+    "EMPResult",
+    "LoanEconomics",
+    "empc_literature",
+    "emp_harness",
     "CalibratedPDModel",
     "CalibratedPDClassifier",
     "CounterfactualResult",

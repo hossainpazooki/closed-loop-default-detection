@@ -152,6 +152,11 @@ class RoundResult:
     #: observable to a real lender (explored loans were funded).
     n_explored: int = 0
     explored_defaults: int = 0
+    #: Net dollar cost of the exploration budget this round (v2): realized
+    #: losses on explored defaults minus realized returns on explored
+    #: non-defaults, priced by cldd.emp economics. Positive = cost money net.
+    #: Reported only — never a gate input. 0.0 when exploration is off.
+    exploration_cost: float = 0.0
     #: Observable-only positivity diagnostics for the prior policy's selection
     #: (see :mod:`cldd.diagnostics`). Computed every round; needs no labels.
     diagnostics: PositivityDiagnostics | None = None
@@ -319,12 +324,14 @@ class SelectiveLabelsLoop:
             explore = corrections.get("explore")
             train_seed = None
             n_explored = explored_defaults = 0
+            exploration_cost = 0.0
             for corrector, outcome in outcomes:
                 if corrector.name == "retrain":
                     train_seed = outcome.info["train_seed"]
                 elif corrector.name == "explore":
                     n_explored = outcome.info["n_explored"]
                     explored_defaults = outcome.info["explored_defaults"]
+                    exploration_cost = outcome.info.get("exploration_cost", 0.0)
 
             # Observable-only diagnostics on the prior policy's selection — what a
             # real lender could monitor instead of the planted-truth ECE.
@@ -357,6 +364,7 @@ class SelectiveLabelsLoop:
                     explore=explore,
                     n_explored=n_explored,
                     explored_defaults=explored_defaults,
+                    exploration_cost=exploration_cost,
                     diagnostics=diag,
                     control_metric=control_metric,
                     passed=passed,

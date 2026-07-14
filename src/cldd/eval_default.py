@@ -19,12 +19,17 @@ from dataclasses import dataclass, field
 import numpy as np
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
-from . import config, model_pd
+from . import config, emp, model_pd
 
 
 @dataclass
 class SubgroupMetrics:
-    """Detection/calibration metrics on one subpopulation."""
+    """Detection/calibration metrics on one subpopulation.
+
+    The EMP fields (v2 reporting axis, ``cldd.emp``) are ``None`` where
+    inapplicable: ``emp_h*`` on cohorts without planted default timing (flat
+    generator), all of them when the cohort lacks the pricing columns.
+    """
 
     n: int
     base_rate: float          # true default fraction in the subgroup
@@ -32,7 +37,13 @@ class SubgroupMetrics:
     auc: float
     brier: float
     ece: float
-    f1: float
+    f1: float             # F1 at the fixed diagnostic POLICY_PD_THRESHOLD; see f1_emp_cutoff
+                           # below for the economically grounded EMPC-optimal-cutoff alternative
+    empc: float | None = None            # literature EMPC (fraction of mean exposure)
+    empc_fraction: float | None = None   # fraction APPROVED at the EMPC-optimal cutoff
+    emp_h: float | None = None           # harness-derived EMP (SCM cohorts only)
+    emp_h_fraction: float | None = None  # fraction APPROVED at its optimal cutoff
+    f1_emp_cutoff: float | None = None   # F1 at the EMPC-optimal cutoff (vs f1 at 0.5)
 
 
 @dataclass
@@ -64,9 +75,9 @@ def expected_calibration_error(y_true: np.ndarray, p: np.ndarray, n_bins: int = 
     return float(ece)
 
 
-def _f1_at_threshold(y_true: np.ndarray, p: np.ndarray, threshold: float) -> float:
-    pred = (np.asarray(p) >= threshold).astype(int)
+def _f1_from_predictions(y_true: np.ndarray, pred: np.ndarray) -> float:
     yt = np.asarray(y_true).astype(int)
+    pred = np.asarray(pred).astype(int)
     tp = int(((pred == 1) & (yt == 1)).sum())
     fp = int(((pred == 1) & (yt == 0)).sum())
     fn = int(((pred == 0) & (yt == 1)).sum())
@@ -75,7 +86,50 @@ def _f1_at_threshold(y_true: np.ndarray, p: np.ndarray, threshold: float) -> flo
     return float(2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
 
 
-def _subgroup_metrics(y_true: np.ndarray, p: np.ndarray, threshold: float) -> SubgroupMetrics:
+def _f1_at_threshold(y_true: np.ndarray, p: np.ndarray, threshold: float) -> float:
+    """F1 at a fixed PD threshold (``POLICY_PD_THRESHOLD`` by default).
+
+    This is a diagnostic-only cutoff with no economic justification; see
+    ``SubgroupMetrics.f1_emp_cutoff`` for F1 at the EMPC-optimal cutoff instead.
+    """
+    pred = (np.asarray(p) >= threshold).astype(int)
+    return _f1_from_predictions(y_true, pred)
+
+
+def _f1_at_approval_fraction(y_true: np.ndarray, scores: np.ndarray, fraction: float) -> float:
+    """F1 when the ``fraction`` lowest-score rows are approved and the rest flagged.
+
+    Order statistics on a stable ascending argsort (not a float threshold), so
+    ties and the exact approved count are reproducible: ``n_approved =
+    round(fraction * n)``.
+    """
+    n = len(y_true)
+    if n == 0:
+        return float("nan")
+    order = np.argsort(np.asarray(scores, dtype=float), kind="stable")
+    n_approved = int(round(fraction * n))
+    n_approved = min(max(n_approved, 0), n)
+    pred = np.ones(n, dtype=int)
+    pred[order[:n_approved]] = 0
+    return _f1_from_predictions(y_true, pred)
+
+
+def _subgroup_metrics(
+    y_true: np.ndarray,
+    p: np.ndarray,
+    threshold: float,
+    *,
+    default_day: np.ndarray | None = None,
+    requested_amount: np.ndarray | None = None,
+) -> SubgroupMetrics:
+    """Metrics on one subpopulation, with EMP fields appended when priceable.
+
+    ``default_day``/``requested_amount`` are the cohort's per-row pricing
+    columns already sliced to this subgroup. EMP fields stay ``None`` when
+    ``requested_amount`` is not supplied (no pricing) or the subgroup is
+    empty; ``emp_h*`` additionally stay ``None`` when ``default_day`` is
+    ``None`` (flat cohorts — no planted default timing).
+    """
     y_true = np.asarray(y_true, dtype=int)
     p = np.asarray(p, dtype=float)
     n = len(y_true)
@@ -85,7 +139,7 @@ def _subgroup_metrics(y_true: np.ndarray, p: np.ndarray, threshold: float) -> Su
         auc = float(roc_auc_score(y_true, p)) if len(np.unique(y_true)) > 1 else float("nan")
     except ValueError:
         auc = float("nan")
-    return SubgroupMetrics(
+    metrics = SubgroupMetrics(
         n=n,
         base_rate=float(y_true.mean()),
         mean_pd=float(p.mean()),
@@ -94,6 +148,18 @@ def _subgroup_metrics(y_true: np.ndarray, p: np.ndarray, threshold: float) -> Su
         ece=expected_calibration_error(y_true, p),
         f1=_f1_at_threshold(y_true, p, threshold),
     )
+    if requested_amount is not None:
+        requested_amount = np.asarray(requested_amount, dtype=float)
+        empc_result = emp.empc_literature(y_true, p)
+        metrics.empc = empc_result.emp
+        if not np.isnan(empc_result.optimal_fraction):  # guard: degenerate subgroup -> None
+            metrics.empc_fraction = empc_result.optimal_fraction
+            metrics.f1_emp_cutoff = _f1_at_approval_fraction(y_true, p, empc_result.optimal_fraction)
+        emp_h_result = emp.emp_harness(y_true, p, default_day, requested_amount)
+        if emp_h_result is not None:
+            metrics.emp_h = emp_h_result.emp
+            metrics.emp_h_fraction = emp_h_result.optimal_fraction
+    return metrics
 
 
 def fit_observed_model(cohort: dict, sample_weight=None, random_state: int | None = None) -> model_pd.CalibratedPDModel:
@@ -133,10 +199,26 @@ def score_pd_detection(
     y = cohort["true_default"]
     approved = cohort["approved"] if funded is None else np.asarray(funded, dtype=bool)
     declined = ~approved
+    # EMP pricing columns, from the same in-process cohort (no replay path).
+    # default_day is None on flat cohorts (no planted default timing).
+    default_day = cohort.get("days_to_default")
+    requested_amount = cohort["features"]["requested_amount"].to_numpy(dtype=float)
     return {
-        "all": _subgroup_metrics(y, p, threshold),
-        "approved": _subgroup_metrics(y[approved], p[approved], threshold),
-        "declined": _subgroup_metrics(y[declined], p[declined], threshold),
+        "all": _subgroup_metrics(
+            y, p, threshold,
+            default_day=default_day,
+            requested_amount=requested_amount,
+        ),
+        "approved": _subgroup_metrics(
+            y[approved], p[approved], threshold,
+            default_day=default_day[approved] if default_day is not None else None,
+            requested_amount=requested_amount[approved],
+        ),
+        "declined": _subgroup_metrics(
+            y[declined], p[declined], threshold,
+            default_day=default_day[declined] if default_day is not None else None,
+            requested_amount=requested_amount[declined],
+        ),
         "predictions": p,
     }
 
