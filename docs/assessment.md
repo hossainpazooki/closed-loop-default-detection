@@ -12,6 +12,10 @@
 >
 > **Status:** 66/66 tests pass (pinned scikit-learn 1.9.0); fidelity gate 51/51 green.
 
+> **2026-07-14:** a second dated assessment — **Part II: the v2 EMP layer (0.2.0),
+> pre-publication** — is appended after Appendix B. The body above is the v1 snapshot,
+> unmodified; Part II qualifies (does not retro-fit) two of its statements — see Part II §6.
+
 ---
 
 ## 1. Bottom line
@@ -280,3 +284,146 @@ the fidelity gate — is sha256-identical.
   3/11/29/71/83; **20/25 positive**, +0.0017 ± 0.0020). It has collapsed by nearly an order of
   magnitude vs severity 0.4 (+0.0017 vs +0.0134) and is negligible with sign flips: at full
   severity there is **no deployable g-computation advantage**, and §3/§5 must not claim one.
+
+---
+
+# Part II — independent assessment of the v2 EMP layer (0.2.0, pre-publication)
+
+*2026-07-14, Fable 5 (`claude-fable-5`). Assessed at the tree that will become `v0.2.0` —
+built and gate-verified, **not yet published** (PyPI still serves 0.1.0; `CITATION.cff`
+still reads 0.1.0 and flips at release). Every number below was recomputed from the
+committed artifacts in this tree at the moment of writing, not quoted from build logs.
+Spec under assessment: `docs/superpowers/specs/2026-07-13-cldd-v2-emp-design.md` (Rev 3).*
+
+> **Status at assessment:** 149/149 tests pass (pinned scikit-learn 1.9.0 / numpy 2.4.6;
+> junitxml: 0 failures, 0 errors, 0 skipped), `sphinx -W` clean, all 18 v1 columns of the
+> committed frontier CSVs byte-identical after regeneration (EMP columns strictly appended).
+> The fidelity gate was **not** re-run (private data; not runnable here) — and does not
+> need to be: v2 touches no generator code, and the frozen flat baseline plus the v1-column
+> byte-identity check bound the blast radius at zero.
+
+## II.1 Bottom line
+
+The v2 layer does what it claims and nothing it doesn't: EMP is **reporting only** — the
+loop provably makes the same decisions it made in v1 — and the arithmetic of both variants
+survived independent recomputation to zero delta. But the assessment's real product is two
+results that **narrow what this repo may claim**, one of them about its own v1 headline:
+
+1. **The operating frontier is a distribution, and the published 0.4 sits at its optimistic
+   end.** Across the 25-seed sweep the SCM-world median frontier is **0.2**; seed 42's 0.4
+   is a minority outcome (11/25). The flat world holds at median 0.4 (15/25).
+2. **The literature EMPC prior misprices this loan structure**, exactly as the spec's
+   decision record anticipated: priced by the standard prior, declined-pool profit *rises*
+   with severity; priced by the harness's own economics, it collapses toward zero. Same
+   scores, opposite conclusion — the disagreement is the deliverable.
+
+Neither finding weakens the mechanism story (the unobserved confounder still explains the
+failure); both tighten the honest phrasing of it.
+
+## II.2 What was verified, and how
+
+The build ran as a four-agent fan-out with an integration gate; its four adversarial
+verifiers all died on a model-usage limit, so **every load-bearing claim below was instead
+verified by the assessing model directly** — a substitution worth naming, since it trades
+verifier independence for verifier capability. Methods and outcomes:
+
+| Claim | Method | Outcome |
+|---|---|---|
+| `empc_literature` implements Verbraken et al. (2014) Eqs. 13/15 | independent re-derivation from the paper text; hand-enumerated convex hulls on 3 cases; direction probe | match to **0.00e+00**; `optimal_fraction` confirmed as the *approved* share |
+| harness economics (λ, profits, day-90 imputation, empty-body fallback) | hand arithmetic from `TERM_DAYS`/`APR`/`ORIGINATION_FEE_RATE`; brute-force cutoff scan; monotone-transform probe | exact on every case; `emp_harness` invariant under monotone maps; flat cohorts return `None` |
+| the new tests would catch a broken implementation | **mutation testing**: 5 injected bugs (hull skipped, score magnitudes used, ranking reversed, p1 term dropped, λ-cap removed) | **5/5 caught** (3–5 failures each); tests are non-vacuous |
+| v1 numbers untouched by the wiring | per-cell string comparison of regenerated CSVs vs `git show HEAD:` | all 18 v1 columns byte-identical, both worlds; 11 EMP columns appended |
+| `exploration_cost` equals the spec's economics | independent recomputation from raw planted columns on a live SCM cohort | match to **0.00e+00** (157 explored, 56 defaults, $439,577.96) |
+
+Known untested edge path, disclosed by its own builder and still untested at assessment:
+the `k == m` hull-terminal fallback in `empc_literature` (reachable only for unusual
+pi0/ROI combinations; the shipped prior never reaches it). It is flagged in the source.
+
+## II.3 Finding 1 — the frontier is a distribution (`artifacts/frontier_sweep.csv`)
+
+First loop-level seed sweep (25 seeds x both worlds, `scripts/run_frontier_sweep.py`):
+
+| World | frontier histogram | median | seed 42 |
+|---|---|---|---|
+| flat | 0.2 × 10, 0.4 × 15 | **0.4** | 0.4 |
+| SCM | 0.2 × 14, 0.4 × 11 | **0.2** | 0.4 |
+
+The honest claim is an operating frontier of **0.2–0.4 depending on the draw**, with the
+flat world centered at 0.4 and the SCM world at 0.2. A single-seed frontier was the same
+shape of defect as a figure published without an error bar; v2 removes it. Caveat carried
+with the artifact: loop seed *s* consumes generator seeds *s..s+7* and the 25-seed set has
+gaps < 8, so runs share feature draws — rows are correlated, not independent.
+
+## II.4 Finding 2 — the convenience prior misprices this loan (`artifacts/loop_frontier_scm.csv`)
+
+Declined subpopulation, naive lever, seed 42, severity 0.0 → 0.6:
+
+| Variant | 0.0 | 0.2 | 0.4 | 0.6 | trend |
+|---|---|---|---|---|---|
+| `empc` (literature prior) | 0.0217 | 0.0331 | 0.0416 | 0.0420 | **rising** |
+| `emp_h` (harness economics) | 0.0387 | 0.0297 | 0.0139 | 0.0024 | **collapsing** |
+
+Root cause, measured: the prior assumes ROI = 0.2644 where this 60-day daily-ACH structure
+returns 0.0875 (fee 3% + 5.75% term interest) — **3.0× the actual return** — and places 55%
+of defaults at full recovery where the harness plants ~1.2% (prior mean λ 0.275 vs planted
+0.419). A lender reading only the benchmark-standard number would conclude the declined pool
+grows more profitable as selection hardens; priced honestly it is nearly worthless at the
+frontier. Exploration is priced on the same economics: at severity 0.6 a 10% budget buys
+157 labels for $439,578 (~$2,800/label, 56 realized defaults) —
+`artifacts/exploration_frontier.csv`.
+
+## II.5 What did not survive this assessment (errors caught, by whom)
+
+1. **A spec claim, retracted.** Rev 2 asserted harness EMP is "mathematically EMPC with an
+   empirical h(λ)". False: they are different functionals (EMPC integrates LGD uncertainty
+   *inside* an expectation of the maximum; `emp_h` maximizes realized profit — Jensen
+   separates them even at identical h(λ)), on top of different ROI and h(λ). Corrected in
+   the spec (Rev 3) before any doc repeated it.
+2. **A wrong README number, caught by this repo's own rule.** The first draft cited 163
+   labels / $458,467 for exploration at severity 0.6 — from an ad-hoc script that priced
+   round 0's RNG draw instead of round 3's. The committed artifact says 157 / $439,578.
+   "Numbers come from committed artifacts" exists precisely for this failure.
+3. **A vacuous verification, caught before it certified anything.** The first mutation
+   harness reported all mutants "caught" — because they crashed on an import error before
+   running a single test. Fixed; only then did the 5/5 result above become evidence.
+4. **The adversarial-verifier fan-out itself failed** (usage limits), degrading the planned
+   independent-skeptic pass into the self-verification documented in §II.2.
+
+## II.6 What Part I statements this qualifies
+
+- Part I §4: *"The SCM frontier lands at severity 0.4 — the same operating frontier as the
+  flat world."* True **for seed 42**, the only seed the harness published in full at the
+  time. As a distribution the SCM frontier centers at **0.2** (14/25 seeds); the flat world
+  keeps its 0.4 median. The two-limits-one-cause mechanism is unaffected.
+- Part I §3's *"seed 42 … is representative, not cherry-picked"* referred to the
+  **counterfactual gap**, where it remains true (2nd-smallest strong gap of 25). For the
+  **frontier** metric, seed 42 sits at the optimistic end. The two metrics must not be
+  blurred: one seed can be representative on one axis and favorable on another.
+- Part I's tests/fidelity status line (66/66, 51/51) is its dated snapshot; the current
+  tree is 149/149 with the fidelity gate unaffected by v2 (no generator code touched).
+
+## II.7 What must stay caveated after publication
+
+- **`emp_h` rests on planted, unfitted timing** — `days_to_default` is independent of
+  features and risk given default, spec-shaped but never validated against real recoveries.
+  Verified experiment, not verified result.
+- **~22.5% of planted defaults (day-90 mass) are priced by a stated imputation** (cohort
+  mean body λ), not measured truth.
+- **Raw EMP moves with world hardness** — cross-severity EMP deltas conflate world
+  difficulty with model failure; read the variants against each other at fixed severity.
+- **EMP is not a gate** — any future proposal to route loop control through EMP is a
+  design change against the spec's decision record, not a tuning knob.
+
+## II.8 Reproducing this assessment's numbers
+
+```bash
+pip install -r requirements-dev.txt && pip install -e ".[dev]"   # pins: sklearn 1.9.0 / numpy 2.4.6
+pytest                                          # 149 passed
+python scripts/run_loop.py --generator scm      # -> artifacts/loop_frontier_scm.{csv,png} (EMP columns)
+python scripts/run_frontier_sweep.py            # -> artifacts/frontier_sweep.csv (25 seeds x both worlds)
+python scripts/run_exploration_sweep.py         # -> artifacts/exploration_frontier.csv (exploration_cost)
+```
+
+*End of Part II. This section is a dated snapshot of the pre-publication tree; if 0.2.0
+ships with changes beyond version metadata, a new dated entry supersedes it rather than
+editing it.*
