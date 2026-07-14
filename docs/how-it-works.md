@@ -25,6 +25,36 @@ simulates the deployment feedback dynamic:
 - **`FeedbackLoop`** (`cldd.feedback`) simulates the deployment dynamic where the model's own
   approvals shape the next generation's training labels.
 
+## Pricing the frontier: the EMP layer (`cldd.emp`)
+
+ECE says *whether* the detector is wrong on the declines; it never says what being wrong
+**costs**. `cldd.emp` adds an expected-maximum-profit axis on top of the same in-process
+scores the loop already measures.
+
+**It is a reporting axis, not a control input.** `control_metric`, `passed`, severity
+escalation and the frontier are all still keyed on declined-subpopulation ECE — the loop makes
+exactly the same decisions it made in v1 (enforced: every v1 column of the committed frontier
+CSVs is byte-identical after the v2 wiring; the EMP columns are strictly appended).
+
+| Entry point | Parameters | Applies to |
+|---|---|---|
+| `empc_literature` | the Verbraken et al. (2014) EMPC prior from `config.py` (`EMPC_P0/P1/ROI`) — closed form over the ROC convex hull, Eqs. 13/15 | every cohort |
+| `emp_harness` | this harness's own loan economics (`TERM_DAYS`, `APR`, `ORIGINATION_FEE_RATE`) plus the **planted** per-row default day | SCM cohorts only — returns `None` on flat cohorts, which plant no timing |
+
+Both consume the score as a **ranking only** (invariant to any strictly monotone transform —
+test-enforced), both report profit per applicant as a fraction of mean exposure so the two
+columns are comparable, and both are pure-numpy with zero RNG.
+
+The two variants **disagree by design, and the disagreement is a result**: the literature prior
+assumes a 26.44% ROI where a 60-day daily-ACH loan returns 8.75%, and puts 55% of defaults at
+full recovery where this harness plants ~1%. See the README's *Pricing the frontier* section
+for the measured numbers and the four reading caveats — most importantly that `emp_h` rests on
+**planted, unfitted** default timing (a verified experiment, not a verified result) and that
+post-term "day-90" defaults are priced by a stated imputation, not measured truth.
+
+Exploration is priced on the same economics: `RoundResult.exploration_cost` is the net dollar
+cost of the labels the lever bought that round (positive = the budget lost money).
+
 ## Why it is useful
 
 - **Earlier, broader detection.** The loop scores and *calibrates* default risk on the
@@ -54,7 +84,8 @@ All drivers write to `artifacts/`:
 
 | File | Produced by | Notes |
 |---|---|---|
-| `loop_frontier.{csv,png}` / `loop_frontier_scm.{csv,png}` | `run_loop.py` | frontier table + plot |
+| `loop_frontier.{csv,png}` / `loop_frontier_scm.{csv,png}` | `run_loop.py` | frontier table + plot (+ EMP columns / EMP panel) |
+| `frontier_sweep.csv` | `run_frontier_sweep.py` | frontier distribution across the 25-seed set |
 | `seed_sweep.csv` | `run_seed_sweep.py` | 5-seed counterfactual certification (committed) |
 | `seed_sweep_25.csv`, `severity_curve.csv` | committed evidence | 25-seed sweep + collapse curve |
 | `exploration_frontier.csv` | `run_exploration_sweep.py` | frontier vs exploration budget |
@@ -75,6 +106,7 @@ the figures quoted in `docs/assessment.md` are recomputable from source. PNGs ar
 │   ├── scm.py                # StructuralBorrowerGenerator — fitted SCM world
 │   ├── model_pd.py           # calibrated PD model (HistGBT + isotonic) + sklearn estimator + IPW weights
 │   ├── eval_default.py       # measure: train-on-approved / score-on-truth
+│   ├── emp.py                # price: expected maximum profit (literature EMPC + harness-derived)
 │   ├── loop.py               # SelectiveLabelsLoop — improve / frontier
 │   ├── correctors.py         # Corrector ABC + 4 pluggable levers (naive/reweight/retrain/explore)
 │   ├── reject_inference.py   # 4 classic reject-inference methods as Correctors
@@ -83,7 +115,7 @@ the figures quoted in `docs/assessment.md` are recomputable from source. PNGs ar
 │   ├── fidelity.py           # fidelity gate + FidelityReport (.get_score / .get_details)
 │   └── counterfactual.py     # counterfactual query set + estimator grading
 ├── scripts/                  # runnable drivers (each adds src/ to sys.path, no install needed)
-├── tests/                    # pytest suite (123 tests; 6 marked `pinned`)
+├── tests/                    # pytest suite (149 tests; 6 marked `pinned`)
 ├── docs/                     # this Sphinx site (sphinx-build -W; RTD-ready) + assessment.md, the dated article
 ├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── CONTRIBUTING.md           # dev setup + how to add a correction lever

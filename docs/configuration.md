@@ -15,6 +15,7 @@ drivers. `src/cldd/config.py` is the single source of truth:
 | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
 | `TERM_DAYS` / `APR` / `ORIGINATION_FEE_RATE` | `60` / `0.35` / `0.03` | loan economics of the synthetic daily-ACH term loan |
 | `POLICY_PD_THRESHOLD` | `0.5` | PD cutoff used **only** for the detection-F1 diagnostic (approve/decline economics are out of scope) |
+| `EMPC_P0` / `EMPC_P1` / `EMPC_ROI` | `0.55` / `0.10` / `0.2644` | literature EMPC prior (Verbraken et al. 2014): P(λ=0), P(λ=1), and the constant ROI. Source-verified; the CRAN `EMP::empCreditScoring` defaults, so `empc` stays benchmark-comparable. **Not** this harness's own economics — see the [README](https://github.com/hossainpazooki/closed-loop-default-detection#pricing-the-frontier-v2) on why they disagree |
 | `EXPLORE_STREAM_LOOP` / `EXPLORE_STREAM_FEEDBACK` | — | dedicated RNG stream tags so the exploration draw can never shift a generator's stream |
 | `RI_*` | — | reject-inference knobs: held-out eval fraction, score bands, parcelling uplift, RNG streams |
 | `DIAG_*` | — | positivity-diagnostic thresholds (see the calibration note in `config.py`) |

@@ -40,6 +40,10 @@ Measurement
    :members:
    :undoc-members:
 
+.. automodule:: cldd.emp
+   :members:
+   :undoc-members:
+
 Synthetic worlds
 ----------------
 

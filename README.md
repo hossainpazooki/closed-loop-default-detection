@@ -29,17 +29,90 @@ ECE ≤ 0.10). From the committed runs (`artifacts/loop_frontier*.csv`, seed 42)
 | **IPW-corrected** (flat world) | 0.020 | 0.038 | **0.086 ✓** | **0.154 ✗** |
 | **IPW-corrected** (SCM world) | 0.036 | 0.038 | **0.097 ✓** | **0.244 ✗** |
 
-Both worlds land the frontier at **severity 0.4**, and the counterfactual deliverable breaks at
-the same boundary: across 25 seeds, g-computation cuts strong-propagation counterfactual MAE
-from 0.099 to 0.086 (−13.5%, positive on 24/25 seeds, Wilcoxon p = 1.5e-7) *inside* the
-frontier — and collapses to a negligible +0.0017 at full severity, where **no deployable
-advantage is claimed**. One cause explains both: selection through an **unobserved
-confounder**, which backdoor adjustment and IPW cannot fix. That single measured limit — not
-an unverifiable score — is the deliverable.
+On **this seed** both worlds land the frontier at severity 0.4, and the counterfactual
+deliverable breaks at the same boundary: across 25 seeds, g-computation cuts
+strong-propagation counterfactual MAE from 0.099 to 0.086 (−13.5%, positive on 24/25 seeds,
+Wilcoxon p = 1.5e-7) *inside* the frontier — and collapses to a negligible +0.0017 at full
+severity, where **no deployable advantage is claimed**. One cause explains both: selection
+through an **unobserved confounder**, which backdoor adjustment and IPW cannot fix. That
+single measured limit — not an unverifiable score — is the deliverable.
+
+### The frontier is a distribution, not a point (v2)
+
+A frontier quoted from one seed is a figure published without an error bar. `v0.2.0` runs the
+loop across the full 25-seed set (`artifacts/frontier_sweep.csv`) — and **seed 42 turns out to
+sit at the optimistic end**:
+
+| World | min | median | max | seeds at 0.4 | seeds at 0.2 |
+|---|---|---|---|---|---|
+| flat | 0.2 | **0.4** | 0.4 | 15/25 | 10/25 |
+| SCM | 0.2 | **0.2** | 0.4 | 11/25 | 14/25 |
+
+In the SCM world the *majority of seeds fail one step earlier than the headline*: the median
+frontier is **0.2**, and seed 42's 0.4 is a minority outcome (11/25). The honest statement is
+that the operating frontier is **0.2–0.4 depending on the draw**, not a clean 0.4 — the
+single-seed table above is a valid instance of it, not its center. Nothing about the
+mechanism changes (the unobserved confounder still explains the failure); what changes is how
+precisely the boundary can be quoted.
+
+*Caveat on the sweep:* loop seed `s` consumes generator seeds `s..s+7`, and the 25-seed set has
+gaps smaller than 8, so some runs share feature draws. No two runs duplicate a cohort, but the
+25 rows are not fully independent — the set is kept for comparability with the counterfactual
+sweep that uses it.
 
 Reproduce the headline from committed evidence: `python scripts/paired_significance.py`.
 The full independent assessment (methodology, all numbers, what didn't hold) is the
-accompanying article, [`docs/assessment.md`](docs/assessment.md).
+accompanying article, [`docs/assessment.md`](docs/assessment.md) — a **dated snapshot**, written
+against the single-seed frontier and not retro-fitted with the distribution above.
+
+## Pricing the frontier (v2)
+
+Calibration says *whether* the model is wrong on the declines; it does not say **what being
+wrong costs**. v2 adds an expected-maximum-profit (EMP) reporting axis — computed from the
+same in-process scores the loop already measures, and **never** a loop-control input (ECE
+still decides pass/fail and the frontier). Two variants run side by side:
+
+| Variant | Parameters | What it answers |
+|---|---|---|
+| `empc` — literature EMPC | Verbraken et al. (2014) prior: `p0=0.55, p1=0.10, ROI=0.2644` | benchmark-comparable: what the standard measure says |
+| `emp_h` — harness-derived | this harness's own economics + **planted** default timing | what the loan structure actually pays |
+
+**The two disagree — and the disagreement is the finding.** In the SCM world they move in
+opposite directions as selection severity rises (from `artifacts/loop_frontier_scm.csv`,
+declined subpopulation, seed 42):
+
+| Selection severity | 0.0 | 0.2 | 0.4 | 0.6 |
+|---|---|---|---|---|
+| Literature `empc` (naive) | 0.0217 | 0.0331 | 0.0416 | **0.0420 ↑** |
+| Harness `emp_h` (naive) | 0.0387 | 0.0297 | 0.0139 | **0.0024 ↓** |
+
+The convenience prior **misprices this loan structure**: it assumes `ROI = 0.2644` where a
+60-day daily-ACH loan actually returns `0.0875` (3% origination fee + 5.75% term interest) —
+a **3.0× overstatement** — and puts **55% of defaults at full recovery where the harness plants
+1.2%** (prior mean λ = 0.275 vs harness 0.419). Priced honestly, the profit on the declined
+pool collapses to near-zero at the frontier; priced by the literature prior, it appears to
+*grow*. Same model, same scores, opposite conclusion.
+
+**Reading caveats — the boundary of what this measures:**
+
+- **Raw EMP moves with world hardness.** A riskier declined pool changes EMP even for a
+  perfect model, so a cross-severity EMP delta is *not* pure model signal. Read the two
+  variants against each other at fixed severity, not the trend in isolation.
+- **`emp_h` rests on unfitted timing.** `days_to_default` is planted but independent of
+  features and risk given default — spec-shaped, never validated against real recovery data.
+  So `emp_h` is a **verified experiment, not a verified result**: the arithmetic is exact, the
+  timing distribution is an assumption.
+- **Post-term defaults are imputed.** ~22.5% of planted defaults land at day 90, past the
+  60-day term, and the generator does not model their payment history; they are priced at the
+  cohort's mean in-term loss fraction (a stated convention, not measured truth).
+- **`emp_h` is SCM-only.** The flat generator plants no timing, so its `emp_h` columns are
+  empty by design; only `empc` is reported there.
+
+Exploration now carries a price tag too. From `artifacts/exploration_frontier.csv` (SCM,
+seed 42, 10% budget, severity 0.6): the lever buys **157 labels for $439,578** — about
+**$2,800 per label**, of which 56 are realized defaults. That is the cost of *identification*,
+in dollars a lender can see, on the only lever that buys it rather than reweighting what is
+already identified.
 
 ## Install
 
@@ -105,6 +178,7 @@ Everything is importable from top-level `cldd` (full reference: the [Sphinx docs
 | `SyntheticBorrowerGenerator`, `StructuralBorrowerGenerator` | the flat and fitted-SCM synthetic worlds |
 | `run_counterfactual_eval`, `GComputationEstimator` | counterfactual validator (g-computation vs naive conditioning) |
 | `FeedbackLoop` | model-in-the-loop selective-labels simulation |
+| `empc_literature`, `emp_harness` | the two EMP variants — price the frontier in profit (reporting only, never loop control) |
 | `positivity_diagnostics` | observable regime/drift alarm — needs **no** declined-row labels |
 | `CalibratedPDClassifier` | the calibrated PD detector as a scikit-learn estimator |
 | `cldd.fidelity.run_fidelity_gate` | SCM-vs-real **marginal**-fidelity gate (univariate marginals only) |
@@ -130,6 +204,7 @@ Each driver runs without install (adds `src/` to the path) and writes to `artifa
 
 ```bash
 python scripts/run_loop.py                    # the closed loop → frontier table + plot (--generator scm for the SCM world)
+python scripts/run_frontier_sweep.py --quick  # frontier distribution across the 25-seed set (drop --quick for all)
 python scripts/run_seed_sweep.py --quick      # counterfactual certification (drop --quick for all seeds)
 python scripts/run_reject_inference.py        # reject-inference levers vs the frontier
 python scripts/run_exploration_sweep.py       # frontier vs exploration budget
@@ -139,7 +214,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 123 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 149 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing
@@ -161,11 +236,17 @@ Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_b
 
 ## Status
 
-`0.1.0` **alpha** on [PyPI](https://pypi.org/project/closed-loop-default-detection/),
-changelog in [CHANGELOG.md](CHANGELOG.md). Shipped: the loop, both worlds, all levers, the
-fidelity gate, the sklearn estimator, CI on three gates. CLDD began as a validation harness
-for the Intuit TechWeek SMB Underwriting Challenge; it is not a submission and does not
-alter challenge files.
+`0.1.0` **alpha** is the current release on
+[PyPI](https://pypi.org/project/closed-loop-default-detection/). **`0.2.0` — the EMP
+measurement layer — is built and green in this tree but not yet published**; `pip install`
+still gets 0.1.0. Changelog: [CHANGELOG.md](CHANGELOG.md).
+
+Shipped in 0.1.0: the loop, both synthetic worlds, all correction levers, the fidelity gate,
+the sklearn estimator, CI on three gates. Added in 0.2.0: `cldd.emp` (both EMP variants),
+priced exploration, the EMP-optimal cutoff, and the 25-seed frontier sweep.
+
+CLDD began as a validation harness for the Intuit TechWeek SMB Underwriting Challenge; it is
+not a submission and does not alter challenge files.
 
 ## Citation
 
@@ -177,7 +258,7 @@ Metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" read
   title   = {{closed-loop-default-detection}: measuring selective-labels default
              detection and the PD model's operating frontier},
   year    = {2026},
-  version = {0.1.0},
+  version = {0.2.0},
   license = {MIT},
   url     = {https://github.com/hossainpazooki/closed-loop-default-detection}
 }

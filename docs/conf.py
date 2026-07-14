@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath("../src"))
 project = "closed-loop-default-detection"
 author = "Hossain Pazooki"
 copyright = "2026, Hossain Pazooki"
-release = "0.1.0"
-version = "0.1"
+release = "0.2.0"
+version = "0.2"
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -54,7 +54,8 @@ master_doc = "index"
 # dated accompanying article (a provenance snapshot); both live in docs/ for
 # convenience but are excluded from the Sphinx build so they do not trip the
 # strict `-W` toc.not_included gate.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md",
+                    "superpowers"]  # superpowers/ = design specs, not site pages
 
 html_theme = "furo"
 html_title = "closed-loop-default-detection"
