@@ -236,10 +236,8 @@ Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_b
 
 ## Status
 
-`0.1.0` **alpha** is the current release on
-[PyPI](https://pypi.org/project/closed-loop-default-detection/). **`0.2.0` — the EMP
-measurement layer — is built and green in this tree but not yet published**; `pip install`
-still gets 0.1.0. Changelog: [CHANGELOG.md](CHANGELOG.md).
+`0.2.0` **alpha** on [PyPI](https://pypi.org/project/closed-loop-default-detection/),
+changelog in [CHANGELOG.md](CHANGELOG.md).
 
 Shipped in 0.1.0: the loop, both synthetic worlds, all correction levers, the fidelity gate,
 the sklearn estimator, CI on three gates. Added in 0.2.0: `cldd.emp` (both EMP variants),

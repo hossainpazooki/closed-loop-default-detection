@@ -5,7 +5,7 @@ recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
 initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
-## [0.2.0] — unreleased (alpha)
+## [0.2.0] — 2026-07-14 (alpha)
 
 The **expected-maximum-profit (EMP) measurement layer**: the loop now reports what being
 wrong on the declined population *costs*, not only whether it is miscalibrated.

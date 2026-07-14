@@ -11,8 +11,8 @@ authors:
   - family-names: Pazooki
     given-names: Hossain
     email: hossain@pazooki.com
-version: 0.1.0
-date-released: 2026-07-03
+version: 0.2.0
+date-released: 2026-07-14
 license: MIT
 repository-code: "https://github.com/hossainpazooki/closed-loop-default-detection"
 url: "https://github.com/hossainpazooki/closed-loop-default-detection"
