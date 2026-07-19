@@ -36,6 +36,20 @@ never exercised there — so **coverage of `cldd/fidelity.py`'s data-loading bra
 by design, not an oversight.** The `coverage (public suite)` CI job and the local
 `pytest --cov=cldd` command both measure only the synthetic-only suite.
 
+## The v3 sweep gates
+
+The 450-run feedback sweep publishes nothing without passing, in order: the full suite
+under pins (including the default-path byte-identity regression — `FeedbackLoop` with
+default flags serializes sha256-identical to pre-v3); the column-identity gate
+(`feedback_generations.csv` regenerated with the 4 additive columns, all 17 v1 columns
+byte-equal to committed values); the **pilot gate** (`run_feedback_sweep.py --quick`, 6
+runs, then `feedback_sweep_stats.py --pilot` asserting the H4 identity — it exists to fail
+in minutes, not after the burn, and it caught a real pricing-basis defect on its first
+firing); and the full-matrix H4 identity (≤ 1e-6 on stored `round(10)` values —
+`feedback_sweep_stats.py` **exits non-zero and blocks publication** when it fails).
+Reproduce: `python scripts/run_feedback_sweep.py --workers 4` (shard-per-run, resumable),
+then `python scripts/feedback_sweep_stats.py`.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:

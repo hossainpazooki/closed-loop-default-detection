@@ -5,6 +5,27 @@ recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
 initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
+## [0.3.0] — 2026-07-19 (alpha, unpublished)
+
+The **feedback-loop profit decomposition**: three arms price *why* the closed loop costs
+money. `FeedbackLoop` gains two additive, byte-exact-default flags — `retrain=False` (the
+frozen arm: generation-0 model deployed forever, exploration from generation 1 only) and
+`policy_mode="prior"` (prior-policy funding, model trained for metrics only) — plus
+`book_profit`/`explored_profit` on `GenerationResult` via `realized_book_profit`
+(full-cohort exposure denominator; **cohort-basis day-90 imputation**, spec Rev 2.1/2.2:
+the pricing basis is a planted cohort property, which makes the H4 identity exact rather
+than tolerance-fudged). New: `scripts/run_feedback_sweep.py` (450-run shard-per-run matrix,
+subprocess-per-run, `--quick` pilot gate) and `scripts/feedback_sweep_stats.py` (recomputes
+every published number from the committed CSV; exits non-zero when H4 fails — publication
+mechanically blocked). Results, from `artifacts/feedback_profit_sweep.csv` (25 seeds,
+distributions only, planted-timing label attached): **H1 confirmed** — feedback
+accumulation costs the funded book (median paired deficit −0.0028, 24/25 seeds, Holm
+p 2.3e-06, clears the prior-arm noise floor); **H2 not confirmed and opposite in measured
+direction** (+0.0119, 0/25); **H3/H3a not confirmed** (5% exploration does not pay for
+itself in-window); **H4 identity ≤ 1e-10** on all 900 checked rows; the declined-ECE alarm
+fires at generation 1–2 in every ε=0 run at 25 seeds (the v2-banked question, answered).
+53 new tests (202 total).
+
 ## [0.2.0] — 2026-07-14 (alpha)
 
 The **expected-maximum-profit (EMP) measurement layer**: the loop now reports what being

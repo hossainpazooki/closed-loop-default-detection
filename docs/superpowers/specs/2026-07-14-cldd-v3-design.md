@@ -23,6 +23,16 @@ construction; the basis and the identity are both pinned by tests
 `test_day_ninety_imputation_basis_is_cohort_not_funded_slice`). Tolerance was **not**
 loosened.
 
+**Rev 2.2 amendment (2026-07-19, during the first full sweep):** §10.5 fired on the full
+matrix — H4 max abs error exactly 0.0001 at every severity — while the identity is exact
+in-process (raw error ≤ 1.04e-17, measured at a fresh seed) and the error distribution over
+all 825 frozen generation-rows is {0 × 626, exactly-1e-4 × 199}: pure round(4) quantization
+of the stored columns, not a leak. The §4 round(4) convention put the identity-bearing
+columns below the gate's own 1e-6 tolerance. Resolution: `book_profit` and `explored_profit`
+are stored at round(10) in the sweep CSV (all other float columns keep round(4)); `H4_TOL`
+is **unchanged** — precision raised, tolerance never loosened. The pilot's earlier pass was
+12-row cancellation luck; the full-matrix gate did its job.
+
 **Repo:** `closed-loop-default-detection`, version 0.2.0 → 0.3.0
 **Builds on:** `docs/superpowers/specs/2026-07-13-cldd-v2-emp-design.md` (Rev 3) and
 CHANGELOG [0.2.0]. The independent-assessment verdicts this design answers are recorded

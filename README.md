@@ -114,6 +114,35 @@ seed 42, 10% budget, severity 0.6): the lever buys **157 labels for $439,578** �
 in dollars a lender can see, on the only lever that buys it rather than reweighting what is
 already identified.
 
+## Pricing the feedback loop (v3)
+
+`v0.3.0` prices the **dynamic** regime, where the model's own approvals create its next
+training set: three arms (treatment = retrain each generation; **frozen** = generation-0
+model deployed forever; **prior** = prior-policy funding), 25 spaced seeds × 3 severities ×
+2 exploration rates × 12 generations = **450 runs**
+(`artifacts/feedback_profit_sweep.csv`), with three pre-registered hypotheses tested as
+within-seed paired contrasts on realized funded-book P&L at severity 0.4, Holm-corrected.
+Every number below recomputes via `python scripts/feedback_sweep_stats.py`. All of it
+consumes **planted, risk-unlinked default timing** — a verified *experiment*, not a
+verified *result*.
+
+| Hypothesis (severity 0.4, gens 1–11) | Median paired deficit | Sign | Verdict |
+|---|---|---|---|
+| H1 feedback accumulation costs money (treatment − frozen, ε=0) | **−0.0028** | 24/25 | **confirmed** (p_holm 2.3e-06, clears the 0.0018 noise floor) |
+| H2 the policy switch costs money (frozen − prior, ε=0) | +0.0119 | 0/25 | **not confirmed — measured opposite in direction** |
+| H3 exploration buys profit back (treatment ε=.05 − ε=0) | −0.0024 | 0/25 | **not confirmed** |
+
+The decomposition v3 exists for came back one-for-three: letting the loop close on its own
+labels measurably costs the book (H1), but at these severities the *switch* to model-based
+funding is profitable relative to the prior policy (H2's predicted sign was wrong — reported
+as measured, not softened), and 5% exploration does not pay for itself in-window (H3; the
+policy-book-only secondary H3a is negative too). The **H4 integrity control** — frozen-arm
+paired difference must equal the explored slice's own P&L *exactly* — holds at ≤1e-10 across
+all 900 checked rows, and the answer to the v2-banked question is re-verified at 25 seeds:
+the declined-ECE alarm fires at generation 1–2 in every ε=0 run (severity 0.4: 25/25 at
+generation 1). Full mechanics in [`docs/how-it-works.md`](docs/how-it-works.md); gates in
+[`docs/validation.md`](docs/validation.md).
+
 ## Install
 
 ```bash

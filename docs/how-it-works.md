@@ -55,6 +55,25 @@ post-term "day-90" defaults are priced by a stated imputation, not measured trut
 Exploration is priced on the same economics: `RoundResult.exploration_cost` is the net dollar
 cost of the labels the lever bought that round (positive = the budget lost money).
 
+## Pricing the feedback loop: arms, pairing, units (v3)
+
+v3 decomposes the closed loop's realized cost with **three arms** run on identical cohorts
+(same generator seeds within a (seed, severity) cell, so every contrast is a within-seed
+paired series): *treatment* is today's `FeedbackLoop` (model policy, retrain each
+generation); *frozen* (`retrain=False`) deploys the generation-0 model forever, isolating
+feedback accumulation — exploration starts at generation 1 there, and explored rows fund
+but never train; *prior* (`policy_mode="prior"`) funds via the cohort's own prior-policy
+column, the iid noise floor. The unit everywhere is `realized_book_profit`: total realized
+P&L of the funded rows divided by full-cohort exposure (n_applicants x mean requested
+amount) — the full-cohort denominator keeps arms with different funded counts comparable.
+Day-90 tail defaulters are imputed at the **cohort's** mean in-term loss fraction (a
+planted, funding-invariant basis — required for the H4 identity, spec Rev 2.1/2.2).
+Statistics are paired over generations 1..11: exact sign test primary, Wilcoxon
+supporting, Holm across H1–H3, and a pre-registered noise floor (the prior arm's own
+generation-to-generation variability). H4 is an *integrity control*, not a hypothesis:
+frozen-arm eps difference must equal the explored slice's own P&L exactly, verifying the
+flags freeze what they claim to freeze.
+
 ## Why it is useful
 
 - **Earlier, broader detection.** The loop scores and *calibrates* default risk on the
