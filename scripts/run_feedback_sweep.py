@@ -84,11 +84,17 @@ FIELDS = [
 # echoed sweep-key fields (seed/selection_severity/exploration_rate/arm/generation/policy)
 # and the bool/int passthrough fields (diag_flagged, n_explored, explored_defaults).
 ROUND_FIELDS = [
-    "funded_rate", "funded_default_rate", "book_profit", "explored_profit",
+    "funded_rate", "funded_default_rate",
     "declined_ece", "declined_mean_pd", "declined_base_rate", "all_ece",
     "declined_empc", "declined_emp_h",
     "diag_propensity_auc", "diag_ess_ratio", "diag_below_floor",
 ]
+# Identity-bearing columns carry round(10), not round(4) (spec Rev 2.2): the H4
+# integrity check |book(eps)-book(0)-explored| <= 1e-6 runs on THESE stored values,
+# and round(4) quantization alone produces exactly-one-ulp (1e-4) residuals on an
+# identity that is exact in-process (raw error ~1e-17, measured 2026-07-19). The
+# tolerance is not loosened; the artifact's precision is raised to meet it.
+IDENTITY_FIELDS = ["book_profit", "explored_profit"]
 
 ROOT = Path(__file__).resolve().parents[1]
 PARTS_DIR = config.ARTIFACTS_DIR / "feedback_sweep_parts"
@@ -203,6 +209,9 @@ def run_one(key: tuple[int, float, float, str]) -> list[dict]:
         for f in ROUND_FIELDS:
             if row.get(f) is not None:
                 row[f] = round(row[f], 4)
+        for f in IDENTITY_FIELDS:
+            if row.get(f) is not None:
+                row[f] = round(row[f], 10)
     return rows
 
 
