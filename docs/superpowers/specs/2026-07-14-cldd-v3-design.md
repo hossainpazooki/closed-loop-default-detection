@@ -9,6 +9,20 @@ HEAD blob (review challenge resolved — the 9/12 + 3/12 counts confirmed; the c
 the learning benefit from the label bill); §4 gains a pilot slice, a runtime budget, and an
 explicit parallelism policy; §10 gains a pilot gate so the H4 identity can fail in minutes,
 not after the full matrix.
+**Rev 2.1 amendment (2026-07-19, during implementation):** the §10.3 pilot gate fired exactly
+as designed — H4 broke at max abs error ~2e-4 against the 1e-6 tolerance on the first pilot
+run. Root cause: decision-5 day-90 imputation prices a slice at *that slice's own* body-mean
+λ, making book P&L non-additive across slices — §1.1's "reuses `realized_profits` on the
+funded rows" and §3's "arithmetic identity" clause were in contradiction, and the identity
+clause is the normative one. Resolution: `realized_book_profit` prices per-row profits over
+the **full cohort** (imputation basis = the cohort's body defaulters — a planted, funding-
+invariant property) and sums the funded rows. §1.1's funded-rows clause is revised
+accordingly; `realized_profits`/`loss_fractions` (v2 surfaces) are untouched; H4 is exact by
+construction; the basis and the identity are both pinned by tests
+(`test_h4_additivity_identity_across_book_and_explored_slice`,
+`test_day_ninety_imputation_basis_is_cohort_not_funded_slice`). Tolerance was **not**
+loosened.
+
 **Repo:** `closed-loop-default-detection`, version 0.2.0 → 0.3.0
 **Builds on:** `docs/superpowers/specs/2026-07-13-cldd-v2-emp-design.md` (Rev 3) and
 CHANGELOG [0.2.0]. The independent-assessment verdicts this design answers are recorded
