@@ -78,6 +78,18 @@ def main() -> None:
                             "diag_flagged": d.flagged,
                             "n_explored": g.n_explored,
                             "explored_defaults": g.explored_defaults,
+                            # v3 additive columns (spec section 6): appended after
+                            # the 17 v1 columns above, which stay untouched in
+                            # name, order, and rounding -- the integration-stage
+                            # column-identity gate depends on that.
+                            "book_profit": None if g.book_profit is None else round(g.book_profit, 4),
+                            "explored_profit": (
+                                None if g.explored_profit is None else round(g.explored_profit, 4)
+                            ),
+                            "declined_empc": None if m.declined_empc is None else round(m.declined_empc, 4),
+                            "declined_emp_h": (
+                                None if m.declined_emp_h is None else round(m.declined_emp_h, 4)
+                            ),
                         }
                     )
 
