@@ -49,6 +49,7 @@ __all__ = [
     "emp_harness",
     "loss_fractions",
     "realized_profits",
+    "realized_book_profit",
 ]
 
 
@@ -302,6 +303,52 @@ def realized_profits(
         profit[tail_mask] = -lam[tail_mask] * requested_amount[tail_mask]
 
     return profit
+
+
+def realized_book_profit(
+    y_true: np.ndarray,
+    default_day: np.ndarray | None,
+    requested_amount: np.ndarray,
+    funded: np.ndarray,
+    economics: LoanEconomics | None = None,
+) -> float | None:
+    """Realized book P&L of the funded rows, normalized by full-cohort exposure.
+
+    Reuses :func:`realized_profits` priced over the FULL cohort, then sums the
+    funded rows -- so day-90 rows take the decision-5 mean-body imputation with
+    the mean computed from the *cohort's* body defaulters (lambda = 1 fallback
+    when the cohort body is empty, see :func:`loss_fractions`). The basis is a
+    planted cohort property, invariant to who funds: pricing on the funded
+    slice's own body mean made book P&L non-additive across slices and broke
+    the H4 arithmetic identity at the pilot gate (spec Rev 2.1 amendment,
+    2026-07-19). Returns ``None`` when timing columns are absent (flat cohorts,
+    ``default_day is None``), mirroring :func:`emp_harness`. **SCM-only, like
+    everything in v3.**
+
+    Units: total realized profit of funded rows / (n_applicants * mean
+    ``requested_amount`` over the FULL cohort, not funded-only) -- profit per
+    applicant as a fraction of cohort mean exposure (v2 decision 6 extended);
+    the full-cohort denominator keeps arms with different funded counts
+    comparable and paired differences well-defined.
+
+    Pure numpy, zero RNG, deterministic.
+    """
+    if default_day is None:
+        return None
+
+    y_true = np.asarray(y_true, dtype=float)
+    default_day = np.asarray(default_day, dtype=float)
+    requested_amount = np.asarray(requested_amount, dtype=float)
+    funded = np.asarray(funded, dtype=bool)
+    n = y_true.shape[0]
+
+    mean_a = float(np.mean(requested_amount)) if n > 0 else 0.0
+    denom = n * mean_a
+    if denom == 0.0:
+        return float("nan")
+
+    profits = realized_profits(y_true, default_day, requested_amount, economics)
+    return float(np.sum(profits[funded])) / denom
 
 
 def emp_harness(

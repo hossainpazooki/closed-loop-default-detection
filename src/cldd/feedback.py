@@ -23,6 +23,15 @@ correction (IPW, retrain) is undefined on the declined side.
   labeled-propensity weights — the identification-buying lever from the static
   loop, now acting as a *stabilizer* of the feedback dynamics.
 
+v3 (docs/superpowers/specs/2026-07-14-cldd-v3-design.md) adds two additive flags,
+byte-exact at their defaults, that isolate the trajectory's causes into three
+arms: ``retrain=False`` freezes the generation-0 model forever (isolates
+feedback accumulation — the "frozen" arm), and ``policy_mode="prior"`` funds
+every generation via the cohort's own prior-policy ``approved`` column while
+the model still trains for its metrics (the noise-floor "prior" arm).
+``retrain=True, policy_mode="model"`` (the defaults) is today's "treatment"
+behavior, unchanged.
+
 Per generation we record the planted-truth calibration on the declined (never
 labeled) side, the *observable* funded-book performance, and the observable
 positivity diagnostics — so the harness can show whether the loop's blind spot
@@ -39,7 +48,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import config, eval_default, model_pd
+from . import config, emp, eval_default, model_pd
 from .diagnostics import PositivityDiagnostics, positivity_diagnostics
 from .loop import LeverMetrics, make_generator
 
@@ -64,6 +73,14 @@ class GenerationResult:
     diagnostics: PositivityDiagnostics
     n_explored: int = 0
     explored_defaults: int = 0
+    #: Realized funded-book P&L (v3), per applicant as a fraction of the FULL
+    #: cohort's mean ``requested_amount`` -- see ``emp.realized_book_profit``.
+    #: ``None`` when the cohort carries no planted default timing (flat).
+    book_profit: float | None = None
+    #: Realized P&L of the explored slice alone, same full-cohort denominator
+    #: as ``book_profit``. ``0.0`` when nothing was explored this generation;
+    #: ``None`` under the same no-timing condition as ``book_profit``.
+    explored_profit: float | None = None
 
 
 @dataclass
@@ -94,11 +111,15 @@ class FeedbackLoop:
         approval_rate: float = config.DEFAULT_APPROVAL_RATE,
         seed: int = config.RANDOM_SEED,
         policy_threshold: float = config.POLICY_PD_THRESHOLD,
+        retrain: bool = True,
+        policy_mode: str = "model",
     ) -> None:
         if not 0.0 <= exploration_rate < 1.0:
             raise ValueError(f"exploration_rate must be in [0, 1); got {exploration_rate!r}")
         if n_generations < 1:
             raise ValueError(f"n_generations must be >= 1; got {n_generations!r}")
+        if policy_mode not in ("model", "prior"):
+            raise ValueError(f"policy_mode must be 'model' or 'prior'; got {policy_mode!r}")
         self.selection_severity = selection_severity
         self.n_generations = n_generations
         self.exploration_rate = exploration_rate
@@ -107,6 +128,15 @@ class FeedbackLoop:
         self.approval_rate = approval_rate
         self.seed = seed
         self.policy_threshold = policy_threshold
+        #: ``False`` (v3 "frozen" arm): keep the generation-0 model deployed
+        #: unchanged forever -- no generation >= 1 ever calls
+        #: ``model_pd.train_pd_model`` again. Byte-exact default is ``True``.
+        self.retrain = retrain
+        #: ``"prior"`` (v3 "prior" arm): fund every generation via the
+        #: cohort's own prior-policy ``approved`` column; the model still
+        #: trains each generation (for its metrics) but never decides
+        #: funding. Byte-exact default is ``"model"`` (today's behavior).
+        self.policy_mode = policy_mode
 
     # ------------------------------------------------------------------ #
 
@@ -152,29 +182,54 @@ class FeedbackLoop:
             X = cohort["features"].to_numpy(dtype=float)
             y = cohort["true_default"]
 
-            if model is None:
+            # ``policy`` label semantics are unchanged by ``policy_mode``: it
+            # reflects whether a model has been trained yet (generation 0 is
+            # always "prior"; generation >= 1 is always "model"), even when
+            # policy_mode="prior" means the model isn't the one FUNDING.
+            policy = "prior" if model is None else "model"
+
+            if self.policy_mode == "prior":
                 policy_funded = cohort["approved"]
-                policy = "prior"
+            elif model is None:
+                policy_funded = cohort["approved"]
             else:
                 policy_funded = self._model_policy(model, X)
-                policy = "model"
 
-            explored = self._explore(policy_funded, generation)
+            # Frozen arm: gen-0 training must be eps-invariant (the H4
+            # identity requires the deployed model itself not to depend on
+            # eps), so exploration is suppressed at generation 0 only when
+            # retrain=False. This never fires on the default retrain=True
+            # path -- the EXPLORE_STREAM_FEEDBACK draw and its call site are
+            # untouched there.
+            if not self.retrain and generation == 0:
+                explored = np.zeros_like(policy_funded)
+            else:
+                explored = self._explore(policy_funded, generation)
             funded = policy_funded | explored
 
             # Diagnose the POLICY selection (pre-exploration): that is the
             # selection a deployment would be monitoring.
             diag = positivity_diagnostics(X, policy_funded, random_state=self.seed + generation)
 
-            if self.exploration_rate > 0.0:
-                weights = np.where(explored, 1.0 / self.exploration_rate, 1.0)[funded]
-            else:
-                weights = None
-            model = model_pd.train_pd_model(
-                X[funded], y[funded], sample_weight=weights, random_state=self.seed + generation
-            )
+            # retrain=True (default): train every generation, byte-identical
+            # to pre-v3 behavior. retrain=False (frozen arm): train only once,
+            # at generation 0 (model is None), then reuse it forever.
+            if self.retrain or model is None:
+                if self.exploration_rate > 0.0:
+                    weights = np.where(explored, 1.0 / self.exploration_rate, 1.0)[funded]
+                else:
+                    weights = None
+                model = model_pd.train_pd_model(
+                    X[funded], y[funded], sample_weight=weights, random_state=self.seed + generation
+                )
 
             scored = eval_default.score_pd_detection(model, cohort, self.policy_threshold, funded=funded)
+
+            default_day = cohort.get("days_to_default")
+            requested_amount = cohort["features"]["requested_amount"].to_numpy(dtype=float)
+            book_profit = emp.realized_book_profit(y, default_day, requested_amount, funded)
+            explored_profit = emp.realized_book_profit(y, default_day, requested_amount, explored)
+
             result.generations.append(
                 GenerationResult(
                     generation=generation,
@@ -185,6 +240,8 @@ class FeedbackLoop:
                     diagnostics=diag,
                     n_explored=int(explored.sum()),
                     explored_defaults=int(y[explored].sum()),
+                    book_profit=book_profit,
+                    explored_profit=explored_profit,
                 )
             )
 
