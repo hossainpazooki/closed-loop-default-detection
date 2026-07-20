@@ -244,17 +244,38 @@ def _load_pre_v3_feedback():
     module = importlib.util.module_from_spec(spec)
     module.__package__ = "cldd"
     sys.modules[name] = module
-    try:
-        exec(  # noqa: S102 - executing a pinned in-repo git blob, not user input
-            compile(proc.stdout, f"<{PRE_V3_COMMIT}:src/cldd/feedback.py>", "exec"),
-            module.__dict__,
-        )
-    finally:
-        sys.modules.pop(name, None)
+    exec(  # noqa: S102 - executing a pinned in-repo git blob, not user input
+        compile(proc.stdout, f"<{PRE_V3_COMMIT}:src/cldd/feedback.py>", "exec"),
+        module.__dict__,
+    )
     return module
 
 
-def test_pre_v3_baseline_really_is_pre_v3():
+@pytest.fixture(scope="module")
+def pre_v3_feedback():
+    """The reconstructed pre-v3 module, built once per module.
+
+    Module-scoped because the blob exec and the baseline loop below are the
+    expensive half of this file; rebuilding them per test tripled the work in
+    every one of CI's fifteen jobs. Stays registered in ``sys.modules`` for the
+    duration so anything resolved lazily off the module still works, and is
+    unregistered on teardown.
+    """
+    module = _load_pre_v3_feedback()
+    yield module
+    sys.modules.pop("cldd._prev3_feedback", None)
+
+
+@pytest.fixture(scope="module")
+def baseline_hash(pre_v3_feedback):
+    """Hash of the pre-v3 default-path run -- the differential reference.
+
+    Computed once and shared: it is the same run for every comparison below.
+    """
+    return _hash_v1_fields(pre_v3_feedback.FeedbackLoop(**RUN_KWARGS).run())
+
+
+def test_pre_v3_baseline_really_is_pre_v3(pre_v3_feedback):
     """Non-vacuity guard on the oracle itself.
 
     The differential test is only meaningful if the reconstructed module is
@@ -263,8 +284,7 @@ def test_pre_v3_baseline_really_is_pre_v3():
     ``retrain`` and ``policy_mode`` parameters, so their *absence* is a
     positive signature of pre-v3 code.
     """
-    pre_v3 = _load_pre_v3_feedback()
-    params = inspect.signature(pre_v3.FeedbackLoop).parameters
+    params = inspect.signature(pre_v3_feedback.FeedbackLoop).parameters
     assert "retrain" not in params
     assert "policy_mode" not in params
     # ...and the current one does have them, so the two really do differ.
@@ -273,19 +293,15 @@ def test_pre_v3_baseline_really_is_pre_v3():
     assert "policy_mode" in current
 
 
-def test_default_path_byte_identity_regression():
+def test_default_path_byte_identity_regression(baseline_hash):
     """Hard gate #1 (spec section 7): with default flags, v3 must reproduce
     pre-v3 behaviour on every v1 field, bit for bit."""
-    pre_v3 = _load_pre_v3_feedback()
-    baseline = pre_v3.FeedbackLoop(**RUN_KWARGS).run()
     current = FeedbackLoop(**RUN_KWARGS).run()
-    assert _hash_v1_fields(current) == _hash_v1_fields(baseline)
+    assert _hash_v1_fields(current) == baseline_hash
 
 
-def test_default_path_byte_identity_regression_is_seed_sensitive():
+def test_default_path_byte_identity_regression_is_seed_sensitive(baseline_hash):
     """Sanity check on the hash oracle: a different seed must NOT collide
     (guards against hashing something seed-invariant by mistake)."""
-    pre_v3 = _load_pre_v3_feedback()
-    baseline = pre_v3.FeedbackLoop(**RUN_KWARGS).run()
     other_seed = FeedbackLoop(**{**RUN_KWARGS, "seed": 43}).run()
-    assert _hash_v1_fields(other_seed) != _hash_v1_fields(baseline)
+    assert _hash_v1_fields(other_seed) != baseline_hash
