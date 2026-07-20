@@ -55,7 +55,9 @@ master_doc = "index"
 # convenience but are excluded from the Sphinx build so they do not trip the
 # strict `-W` toc.not_included gate.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md",
-                    "superpowers"]  # superpowers/ = design specs, not site pages
+                    "superpowers",   # superpowers/ = design specs, not site pages
+                    "handoff",       # handoff/ = session briefs, not site pages
+                    "learnings"]     # learnings/ = findings ledger, not site pages
 
 html_theme = "furo"
 html_title = "closed-loop-default-detection"
