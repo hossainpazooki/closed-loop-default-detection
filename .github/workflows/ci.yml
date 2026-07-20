@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the default-path identity test reconstructs
+          # pre-v3 feedback.py from a git blob, unreachable in a shallow clone.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
@@ -42,6 +46,10 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the default-path identity test reconstructs
+          # pre-v3 feedback.py from a git blob, unreachable in a shallow clone.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -61,6 +69,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the default-path identity test reconstructs
+          # pre-v3 feedback.py from a git blob, unreachable in a shallow clone.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -79,6 +91,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the default-path identity test reconstructs
+          # pre-v3 feedback.py from a git blob, unreachable in a shallow clone.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -7,7 +7,12 @@ Spec: docs/superpowers/specs/2026-07-14-cldd-v3-design.md (Rev 2), section 1.2.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
+import inspect
 import json
+import pathlib
+import subprocess
+import sys
 
 import pytest
 
@@ -185,40 +190,102 @@ def _hash_v1_fields(res) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-# Derived 2026-07-18: ran FeedbackLoop(selection_severity=0.4, n_generations=4,
-# exploration_rate=0.05, generator="scm", n_applicants=1000, seed=42).run()
-# (default retrain/policy_mode) against (a) a scratch copy of src/cldd with
-# feedback.py and emp.py replaced by `git show HEAD:...` at commit da81c98
-# (pre-v3, before this session's changes) and (b) the current post-v3
-# src/cldd, both under the pinned venv (scikit-learn==1.9.0, numpy==2.4.6).
-# Both runs produced this identical sha256 of _serialize_v1_fields' output --
-# confirms the default path (retrain=True, policy_mode="model") is
-# byte-identical pre/post v3.
-EXPECTED_DEFAULT_PATH_SHA256 = "e8f0d3c4d1e338eb25876c02fd3b94c813e3cc12d8ce7cb6993590f867eafbc4"
+# Pre-v3 baseline: the last commit before the v3 core landed (3f07075).
+PRE_V3_COMMIT = "da81c98"
+
+# The identity is measured DIFFERENTIALLY -- pre-v3 and current code run in the
+# same process, same interpreter, same BLAS -- rather than against a stored
+# hash. An earlier revision pinned a sha256 literal derived on one machine;
+# HistGBT floats shift across OS and numpy version, so that literal encoded
+# "same floats as the author's laptop" and failed on every non-Windows CI job
+# (2026-07-19, 14/15 jobs red). Comparing both implementations in one
+# environment tests the claim the spec actually makes -- that v3's flags did
+# not perturb the default path -- and is invariant to the platform's floats.
+RUN_KWARGS = dict(
+    selection_severity=0.4,
+    n_generations=4,
+    exploration_rate=0.05,
+    generator="scm",
+    n_applicants=1000,
+    seed=42,
+)
+
+
+def _load_pre_v3_feedback():
+    """Import ``feedback.py`` as of :data:`PRE_V3_COMMIT` as a live module.
+
+    Loaded under the package name ``cldd._prev3_feedback`` so its relative
+    imports (``from . import config, ...``) resolve against the *current*
+    ``cldd`` package. That is sound because v3's ``emp.py`` change was purely
+    additive (``realized_book_profit`` appended); pre-v3 ``feedback.py`` does
+    not import ``emp`` at all, so nothing it touches was modified.
+
+    Skips (never silently passes) when the object is unreachable -- no git, not
+    a checkout, or a shallow clone without history.
+    """
+    repo_root = pathlib.Path(__file__).resolve().parent.parent
+    try:
+        proc = subprocess.run(
+            ["git", "show", f"{PRE_V3_COMMIT}:src/cldd/feedback.py"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, FileNotFoundError) as exc:  # pragma: no cover - env-dependent
+        pytest.skip(f"git unavailable, cannot reconstruct pre-v3 baseline: {exc}")
+    if proc.returncode != 0:  # pragma: no cover - env-dependent
+        pytest.skip(
+            f"pre-v3 blob {PRE_V3_COMMIT} unreachable (shallow clone or sdist): "
+            f"{proc.stderr.strip()}"
+        )
+
+    name = "cldd._prev3_feedback"
+    spec = importlib.util.spec_from_loader(name, loader=None)
+    module = importlib.util.module_from_spec(spec)
+    module.__package__ = "cldd"
+    sys.modules[name] = module
+    try:
+        exec(  # noqa: S102 - executing a pinned in-repo git blob, not user input
+            compile(proc.stdout, f"<{PRE_V3_COMMIT}:src/cldd/feedback.py>", "exec"),
+            module.__dict__,
+        )
+    finally:
+        sys.modules.pop(name, None)
+    return module
+
+
+def test_pre_v3_baseline_really_is_pre_v3():
+    """Non-vacuity guard on the oracle itself.
+
+    The differential test is only meaningful if the reconstructed module is
+    genuinely older code. If the loader silently handed back today's
+    ``feedback.py``, the comparison would be a tautology. v3 added the
+    ``retrain`` and ``policy_mode`` parameters, so their *absence* is a
+    positive signature of pre-v3 code.
+    """
+    pre_v3 = _load_pre_v3_feedback()
+    params = inspect.signature(pre_v3.FeedbackLoop).parameters
+    assert "retrain" not in params
+    assert "policy_mode" not in params
+    # ...and the current one does have them, so the two really do differ.
+    current = inspect.signature(FeedbackLoop).parameters
+    assert "retrain" in current
+    assert "policy_mode" in current
 
 
 def test_default_path_byte_identity_regression():
-    res = FeedbackLoop(
-        selection_severity=0.4,
-        n_generations=4,
-        exploration_rate=0.05,
-        generator="scm",
-        n_applicants=1000,
-        seed=42,
-    ).run()
-    assert _hash_v1_fields(res) == EXPECTED_DEFAULT_PATH_SHA256
+    """Hard gate #1 (spec section 7): with default flags, v3 must reproduce
+    pre-v3 behaviour on every v1 field, bit for bit."""
+    pre_v3 = _load_pre_v3_feedback()
+    baseline = pre_v3.FeedbackLoop(**RUN_KWARGS).run()
+    current = FeedbackLoop(**RUN_KWARGS).run()
+    assert _hash_v1_fields(current) == _hash_v1_fields(baseline)
 
 
 def test_default_path_byte_identity_regression_is_seed_sensitive():
-    """Sanity check on the hash oracle itself: a different seed must NOT
-    collide with the pinned hash (guards against a vacuously-true comparison,
-    e.g. hashing something seed-invariant by mistake)."""
-    res = FeedbackLoop(
-        selection_severity=0.4,
-        n_generations=4,
-        exploration_rate=0.05,
-        generator="scm",
-        n_applicants=1000,
-        seed=43,
-    ).run()
-    assert _hash_v1_fields(res) != EXPECTED_DEFAULT_PATH_SHA256
+    """Sanity check on the hash oracle: a different seed must NOT collide
+    (guards against hashing something seed-invariant by mistake)."""
+    pre_v3 = _load_pre_v3_feedback()
+    baseline = pre_v3.FeedbackLoop(**RUN_KWARGS).run()
+    other_seed = FeedbackLoop(**{**RUN_KWARGS, "seed": 43}).run()
+    assert _hash_v1_fields(other_seed) != _hash_v1_fields(baseline)
