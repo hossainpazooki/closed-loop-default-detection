@@ -427,3 +427,107 @@ python scripts/run_exploration_sweep.py         # -> artifacts/exploration_front
 *End of Part II. This section is a dated snapshot of the pre-publication tree; if 0.2.0
 ships with changes beyond version metadata, a new dated entry supersedes it rather than
 editing it.*
+
+---
+
+# Part III — post-publication methodological review (0.3.0, released)
+
+*2026-07-22, Fable 5 (`claude-fable-5`). Written at `416e3a2`, after the `v0.3.0` release
+(live on PyPI, effect-verified from a clean consumer venv) and alongside the accompanying
+essay's publication. Parts I and II are untouched, per this document's own rule. This part
+records two things: the pre-publication verification pass (what was recomputed and held),
+and the methodological review it produced — a ranked list of critiques and **proposed**
+tests. The proposed tests are exactly that: none has been run. The
+implemented-vs-proposed boundary is tagged line by line.*
+
+> **Status at review:** every empirical figure in the essay recomputed from the committed
+> artifacts at the `v0.3.0` tree and matched (III.1); marginal-fidelity gate **re-run
+> 2026-07-22 against the private dataset: PASSED, 51/51 rows green** (36 counted toward
+> the verdict + 15 informational), exit 0 — the first reconfirmation since the carried-over
+> claim flagged in the 2026-06-26 handoff; suite 203 under pins; CI 15/15.
+
+## III.1 The verification pass [verified]
+
+Recomputed from artifacts, not quoted from docs — all exact: seed-42 severity-0.4 MAE
+0.087160 → 0.084219 (overall gap +0.0029, strong-propagation +0.0079;
+`seed_sweep_25.csv`); severity-1.0 overall gap +0.0003, strong-propagation +0.0017;
+declined-ECE 0.0969/0.1123 at severity 0.4 and 0.2439/0.2728 at 0.6
+(`loop_frontier_scm.csv`); frontier distribution SCM median 0.2 (14/25 at 0.2, 11/25 at
+0.4), flat median 0.4 (`frontier_sweep.csv`). Math spot-checks: the 24/25 sign-test p is
+exactly 26/2²⁵ = 7.749e-07; −13.5% = 0.0134/0.099; `paired_significance.py` reproduces
+W = 322, p = 1.490e-07 (severity 0.4) and the severity-1.0 significant-in-sign /
+negligible-in-magnitude refusal. One essay ambiguity was fixed pre-publication: the
+maximal-severity "+0.0003" is the *overall* gap (strong-propagation is +0.0017).
+
+## III.2 Methodology critiques, ranked (each with its proposed test)
+
+1. **[proposed] Pseudo-replicated seeds under the headline p-values.** The 25-seed set
+   behind `seed_sweep_25.csv`/`frontier_sweep.csv` has inter-seed gaps < 8 while each run
+   consumes seeds `s..s+7` (disclosed in the README caveat), so the "paired replicates"
+   share feature draws and Wilcoxon/paired-t independence is violated — p = 1.5e-07 is
+   anti-conservative. The v3 spec rejected this exact seed set for this exact reason and
+   built the spaced set {1000+16i}; the v1/v2 headline claims still rest on the
+   overlapping one. The 24/25 sign is robust; the quoted significance is not what an
+   independent design would give. *Test:* re-run the counterfactual and frontier sweeps on
+   the spaced set; quote those p-values. The cheapest high-value robustness run available.
+2. **[proposed] "Both walls are the same wall" is a coincidence of location, not yet a
+   demonstrated mechanism.** With four severities {0, 0.2, 0.4, 0.6}, two independent
+   failure modes landing on the same grid step is not rare. The harness owns the world, so
+   the mechanism claim is testable interventionally: *reveal the confounder* — append `u`
+   to the estimators' feature set (equivalently run at `unobserved_strength = 0`) and show
+   both walls move together or vanish; negative control: append an irrelevant noise column
+   and show neither moves. If both walls disappear when `u` is observed, "one cause,
+   measured two ways" becomes an ablation result. The strength-0 point lies on the planned
+   v4 Option A surface, so this is v4's natural opening move, not extra work.
+3. **[proposed] The IPW wall's location may partly encode a hard-coded constant.**
+   `selection_adjusted_weights` clips propensity to (0.05, 0.95) — a silent max weight of
+   20 (`model_pd.py:170,192`). At severity 0.6 the failure could be (a) unobserved
+   confounding, as claimed, (b) clipping bias — the correction needs weights the clip
+   forbids, or (c) weight variance; only (a) supports the published story, and (b) sits
+   exactly on the disclosed boundary between confounder-positivity and cutoff-positivity
+   failure. *Test:* frontier sensitivity to clip ∈ {(0.01, 0.99), (0.05, 0.95), none} plus
+   a Hajek-normalized variant. Wall doesn't move → the confounding claim is clean; moves →
+   the README owes one sentence.
+4. **[proposed] G-computation is graded holding the true graph.** Disclosed (topology,
+   never coefficients), but a real lender lacks the true topology too, so "deployable"
+   mildly overreaches. *Test:* graph-misspecification sensitivity — remove one true edge,
+   add one spurious edge, re-grade. The +0.0079 gap surviving a mildly wrong graph earns
+   "deployable"; a sign flip is a publishable finding in itself.
+5. **[proposed] The strong-propagation subset is truth-defined.** Legitimate in a graded
+   world, but no practitioner can identify "queries whose effects propagate" without the
+   SCM. *Test:* none needed — one disclosure sentence in the docs, if not already present,
+   that the subset is defined from the answer key, not from anything observable.
+6. **[proposed] No within-seed uncertainty on ECE cells.** v2 fixed the across-seed spread
+   (the frontier distribution); within a cell, 10-equal-width-bin ECE on a finite cohort is
+   itself noisy and 0.0969 clears the 0.10 target by ~3%. *Test:* bootstrap CI on
+   declined-cohort ECE at severity 0.4, reported as sensitivity only — the 0.10 constant
+   and the binning remain registered defects per the v3 spec §9, not knobs.
+
+## III.3 Engineering tests proposed
+
+- **[proposed] Mechanize the doc-number gate.** The "numbers come from committed
+  artifacts" rule has fired twice, manually (II.5), and the essay adds a third quoting
+  surface. A `check_doc_numbers` script diffing quoted figures against artifact recomputes,
+  wired into CI, turns the repo's best manual discipline into a gate. Highest engineering
+  ROI on this list.
+- **[proposed] Systematic mutation run** (`mutmut` or equivalent) over `src/cldd/` with a
+  survival report — mutation testing here has been ad hoc (five planted EMP bugs, the
+  1.02× identity probe), and II.5's vacuous-verification incident is the argument for
+  doing it systematically.
+- **[proposed] Close the disclosed untested path:** the `k == m` hull-terminal fallback in
+  `empc_literature` (flagged in source since v2) — construct the unusual pi0/ROI
+  combination that reaches it; one test.
+- **[proposed] Property-based tests** (`hypothesis`) for the algebraic invariants now
+  covered only by examples: monotone-transform invariance of ranking metrics,
+  `realized_book_profit` additivity over disjoint masks, byte-determinism per seed.
+
+## III.4 Priority
+
+If only three run: III.2-1 (spaced-seed rerun — repairs the weakest published evidence),
+III.2-2 (reveal-`u` ablation — upgrades the most-staked claim from correlation to
+mechanism, and is v4-shaped anyway), III.3-doc-number-gate (compounds forever). None of
+these blocks anything already published: the published claims survive the verification
+pass as stated; this list is where the *next* increment of rigor lives.
+
+*End of Part III. Dated snapshot of the post-release tree at `416e3a2`; supersede with a
+new dated part, never edit.*
