@@ -17,6 +17,17 @@ hides labels the way real approval policies do, and grades every correction agai
 - **Honest by construction** — every number below recomputes from committed CSVs; limits are
   reported, not smoothed over.
 
+```bash
+pip install closed-loop-default-detection      # the library (PyPI, v0.3.0)
+# reproduce the headline statistic from the committed artifact (needs the repo checkout):
+python scripts/paired_significance.py
+```
+
+> **What this is — and is not.** CLDD is a *validation harness* graded against planted
+> synthetic ground truth; it is **not a credit-modeling toolkit**. The correction levers it
+> ships (IPW, retrain, exploration, reject inference) exist to be *measured against a known
+> answer* — nothing in this repo is validated for making decisions on real borrower data.
+
 ## The result it produces
 
 The loop escalates selection severity until correction fails and reports the **operating

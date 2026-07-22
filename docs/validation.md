@@ -24,6 +24,11 @@ per-feature p1/p50/p99, and categorical top-frequencies — so "fidelity PASSED"
 modeled marginals match the real data*, **not** that the generator is faithful in the
 joint/causal distribution.
 
+**Last verified against the private dataset: 2026-07-22** (v0.3.0 tree) — gate **PASSED**,
+51/51 rows green (36 counted toward the verdict + 15 informational), exit 0. That claim is
+dated, not standing: it is **not reproducible from this repo alone**, and a fresh
+verification requires re-running the command below against a copy of the data.
+
 The real Intuit dataset is **private and not shipped**. Point the gate at your own copy
 (a directory containing `train.csv`) via the portable `CLDD_DATA_DIR` environment variable
 — e.g. `CLDD_DATA_DIR=/path/to/dataset python scripts/check_fidelity.py` — or the equivalent

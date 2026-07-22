@@ -1,5 +1,14 @@
 # Session Handoff — closed-loop-default-detection
 
+> **Relocated & redacted 2026-07-22** (was the repo-root `SESSION_HANDOFF.md`; moved
+> here at public release). Redactions: machine-local paths and the private dataset's
+> location were removed, and the repo — private when this was written — is now
+> public. Everything else, including every figure and status line, is the frozen
+> 2026-06-26 snapshot, deliberately unchanged. Two pointers have since moved:
+> `FABLE.md` is now `docs/assessment.md`, and the fidelity gate flagged
+> "not re-verified" below **was re-run green on 2026-07-22** (51/51 rows, exit 0) —
+> see `docs/validation.md` for the dated claim.
+
 > Orientation note for the next session. It carries **only** what isn't already in
 > the reference docs: current state, what's unverified, and the non-obvious design
 > facts. For anything empirical, follow the link — **do not restate numbers here**
@@ -12,9 +21,8 @@
 | Rendered API reference / quickstart | `docs/` (Sphinx) |
 | How to contribute, dev setup | `CONTRIBUTING.md` |
 
-Repo: `hossainpazooki/closed-loop-default-detection` (**private**, branch `master`).
-Local: `C:\Users\hossa\dev\closed-loop-default-detection`. Python venv at
-`.venv/Scripts/python.exe`.
+Repo: `hossainpazooki/closed-loop-default-detection`, branch `master`.
+*(Visibility statement and machine-local paths redacted 2026-07-22 — see header note.)*
 
 ---
 
@@ -37,11 +45,10 @@ Local: `C:\Users\hossa\dev\closed-loop-default-detection`. Python venv at
 
 - **The fidelity gate has not been re-run here** — it needs the real Intuit
   `train.csv`, which is absent from this checkout. The "fidelity PASSED" claims
-  elsewhere are carried over from a prior session, not reconfirmed. Real Intuit data
-  lives in the hackathon repo at `…/intuit-techweek-nyc-hackathon-2026/dataset/`
-  (`train.csv`, `validation.csv`, `test.csv`, `data_dictionary.csv`,
-  `intervention_queries.csv`); pass that directory explicitly to the fidelity
-  functions on another machine.
+  elsewhere are carried over from a prior session, not reconfirmed. The real Intuit
+  data lives outside this repo *(location redacted 2026-07-22 — private dataset)*;
+  pass its directory explicitly to the fidelity functions on a machine that has it.
+  *(Superseded: re-run green 2026-07-22 — see header note.)*
 
 ---
 

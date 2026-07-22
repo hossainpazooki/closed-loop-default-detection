@@ -139,8 +139,7 @@ the figures quoted in `docs/assessment.md` are recomputable from source. PNGs ar
 ├── examples/                 # runnable quickstart (synthetic-only) + its README
 ├── CONTRIBUTING.md           # dev setup + how to add a correction lever
 ├── pyproject.toml            # package metadata + dependency ranges (provenance pins in requirements-dev.txt)
-├── requirements-dev.txt      # pinned dev environment (the provenance pins)
-└── SESSION_HANDOFF.md        # architecture / handoff notes
+└── requirements-dev.txt      # pinned dev environment (the provenance pins)
 ```
 
 ## Development invariants
