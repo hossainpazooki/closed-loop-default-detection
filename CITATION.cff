@@ -10,7 +10,6 @@ type: software
 authors:
   - family-names: Pazooki
     given-names: Hossain
-    email: hossain@pazooki.com
 version: 0.3.0
 date-released: 2026-07-22
 license: MIT
