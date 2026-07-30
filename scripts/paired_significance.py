@@ -31,6 +31,7 @@ Run from the CLDD repo root with the pinned interpreter:
 
 from __future__ import annotations
 
+import argparse
 import csv
 from pathlib import Path
 
@@ -64,7 +65,29 @@ def sample_sd(values):
 
 
 def main():
-    by_sev = load_strong_gaps(SWEEP_CSV)
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument(
+        "--sweep-csv", type=Path, default=SWEEP_CSV,
+        help="input seed-sweep CSV (default: the committed overlapping 25-seed set; "
+             "pass artifacts/seed_sweep_spaced.csv for the spaced-set rerun)",
+    )
+    ap.add_argument(
+        "--out-csv", type=Path, default=None,
+        help="output CSV (default: artifacts/paired_significance.csv for the default "
+             "input, else <input stem with 'seed_sweep' -> 'paired_significance'>.csv)",
+    )
+    args = ap.parse_args()
+    sweep_csv = args.sweep_csv
+    out_csv = args.out_csv
+    if out_csv is None:
+        if sweep_csv == SWEEP_CSV:
+            out_csv = OUT_CSV
+        else:
+            out_csv = sweep_csv.with_name(
+                sweep_csv.stem.replace("seed_sweep", "paired_significance") + ".csv"
+            )
+
+    by_sev = load_strong_gaps(sweep_csv)
 
     rows = []
     for sev in SEVERITIES:
@@ -94,7 +117,7 @@ def main():
             }
         )
 
-    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "severity",
         "n",
@@ -106,15 +129,15 @@ def main():
         "t_stat",
         "t_p",
     ]
-    with OUT_CSV.open("w", newline="") as fh:
+    with out_csv.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
 
     print("Paired significance test on 25-seed strong_gap (alt=greater)")
-    print("source: " + str(SWEEP_CSV))
-    print("output: " + str(OUT_CSV))
+    print("source: " + str(sweep_csv))
+    print("output: " + str(out_csv))
     print("")
     for row in rows:
         print("severity %.1f  (n=%d)" % (row["severity"], row["n"]))
@@ -125,8 +148,11 @@ def main():
         print("  paired t  t = %.3f   p = %.3e"
               % (row["t_stat"], row["t_p"]))
         print("")
-    print("NOTE: severity 1.0 is significant in SIGN but the magnitude")
-    print("(+0.0017) is negligible -- no deployable advantage is claimed there.")
+    full = next((r for r in rows if r["severity"] == 1.0), None)
+    if full is not None:
+        print("NOTE: severity 1.0 is significant in SIGN but the magnitude")
+        print("(%+.4f) is negligible -- no deployable advantage is claimed there."
+              % full["mean"])
 
 
 if __name__ == "__main__":
