@@ -71,6 +71,25 @@ def test_gate_fails_closed_on_missing_artifact(monkeypatch, tmp_path):
     assert all(r["error"] for r in artifact_backed), "failure must carry the reason"
 
 
+def test_gate_artifacts_are_git_tracked():
+    """Every artifact the gate reads must be TRACKED, not merely present.
+
+    artifacts/* is gitignore-default-deny; an unexcepted file exists locally
+    (where the sweep ran) but not on CI/clones, where the fail-closed gate then
+    fails. This catches the mismatch locally, before a push.
+    """
+    import subprocess
+    tracked = subprocess.run(
+        ["git", "ls-files", "artifacts/"],
+        capture_output=True, text=True, cwd=cdn.ROOT,
+    ).stdout.splitlines()
+    tracked_names = {Path(p).name for p in tracked}
+    missing = [n for n in cdn.ARTIFACTS_READ if n not in tracked_names]
+    assert not missing, (
+        f"gate reads untracked artifacts (add !artifacts/ exceptions + git add): {missing}"
+    )
+
+
 def test_formatting_matches_doc_conventions():
     assert cdn.sci_short(1.4901161193847656e-07) == "1.5e-7"
     assert cdn.sci_padded(2.3253e-06) == "2.3e-06"

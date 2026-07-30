@@ -16,6 +16,8 @@ artifacts/*
 !artifacts/seed_sweep_spaced.csv
 !artifacts/frontier_sweep_spaced.csv
 !artifacts/paired_significance_spaced.csv
+!artifacts/feedback_profit_sweep.csv
+!artifacts/feedback_sweep_stats.csv
 
 # Python
 __pycache__/

@@ -1,0 +1,22 @@
+metric,hypothesis,severity,exploration_rate,role,direction,n_seeds,mean_per_seed_stat,median_per_seed_stat,floor,clears_floor,sign_k,sign_n,sign_p_raw,sign_p_holm,wilcoxon_stat,wilcoxon_p_raw,wilcoxon_p_holm,confirmed,identity_n_checked,identity_max_abs_error,identity_passed,detail_json
+hypothesis,H1,0.2,,confirmatory,negative,25.0,-0.0038,-0.0037,0.0023,True,25.0,25.0,2.9802322387695312e-08,,0.0,2.9802322387695312e-08,,,,,,
+hypothesis,H1,0.4,,confirmatory,negative,25.0,-0.0027,-0.0028,0.0018,True,24.0,25.0,7.748603820800781e-07,2.3245811462402344e-06,1.0,5.960464477539063e-08,1.7881393432617188e-07,True,,,,
+hypothesis,H1,1.0,,confirmatory,negative,25.0,0.0155,0.0147,0.0008,True,0.0,25.0,1.0,,325.0,1.0,,,,,,
+hypothesis,H2,0.2,,confirmatory,negative,25.0,0.0284,0.0285,0.0023,True,0.0,25.0,1.0,,325.0,1.0,,,,,,
+hypothesis,H2,0.4,,confirmatory,negative,25.0,0.0118,0.0119,0.0018,True,0.0,25.0,1.0,1.0,325.0,1.0,1.0,False,,,,
+hypothesis,H2,1.0,,confirmatory,negative,25.0,-0.0293,-0.0284,0.0008,True,25.0,25.0,2.9802322387695312e-08,,0.0,2.9802322387695312e-08,,,,,,
+hypothesis,H3,0.2,,confirmatory,positive,25.0,-0.0026,-0.0026,0.0023,True,0.0,25.0,1.0,,0.0,1.0,,,,,,
+hypothesis,H3,0.4,,confirmatory,positive,25.0,-0.0024,-0.0024,0.0018,True,0.0,25.0,1.0,1.0,0.0,1.0,1.0,False,,,,
+hypothesis,H3,1.0,,confirmatory,positive,25.0,-0.0015,-0.0017,0.0008,True,4.0,25.0,0.9999217391014099,,12.0,0.9999983608722687,,,,,,
+hypothesis,H3a,0.2,,secondary,positive,25.0,-0.0008,-0.0008,0.0023,False,5.0,25.0,0.9995447397232056,,33.0,0.9999188482761383,,,,,,
+hypothesis,H3a,0.4,,secondary,positive,25.0,-0.0007,-0.0007,0.0018,False,6.0,25.0,0.9979613423347473,,44.0,0.9996425211429596,,,,,,
+hypothesis,H3a,1.0,,secondary,positive,25.0,0.0002,0.0,0.0008,False,14.0,25.0,0.34501898288726807,,178.0,0.34575942158699036,,,,,,
+h4_identity,H4,0.2,,integrity_control,n/a,,,,,,,,,,,,,,300.0,1.0000000567195189e-10,True,
+h4_identity,H4,0.4,,integrity_control,n/a,,,,,,,,,,,,,,300.0,1.0000000523827102e-10,True,
+h4_identity,H4,1.0,,integrity_control,n/a,,,,,,,,,,,,,,300.0,1.0000000317828689e-10,True,
+t_ece_distribution,T_ece,0.2,0.0,descriptive,n/a,25.0,,,,,25.0,25.0,,,,,,,,,,"{""1"": 25}"
+t_ece_distribution,T_ece,0.2,0.05,descriptive,n/a,25.0,,,,,20.0,25.0,,,,,,,,,,"{""1"": 20, ""2"": 4, ""3"": 1}"
+t_ece_distribution,T_ece,0.4,0.0,descriptive,n/a,25.0,,,,,25.0,25.0,,,,,,,,,,"{""1"": 25}"
+t_ece_distribution,T_ece,0.4,0.05,descriptive,n/a,25.0,,,,,15.0,25.0,,,,,,,,,,"{""1"": 15, ""2"": 8, ""3"": 1, ""4"": 1}"
+t_ece_distribution,T_ece,1.0,0.0,descriptive,n/a,25.0,,,,,0.0,25.0,,,,,,,,,,"{""2"": 25}"
+t_ece_distribution,T_ece,1.0,0.05,descriptive,n/a,25.0,,,,,13.0,25.0,,,,,,,,,,"{""1"": 13, ""2"": 10, ""3"": 1, ""6"": 1}"

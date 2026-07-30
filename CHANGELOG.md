@@ -28,8 +28,13 @@ Post-publication robustness (assessment Part III, items III.2-1 and III.3):
   empirical figure quoted in the README now recomputes from a committed artifact in CI, at
   the precision the README quotes; fail-closed, and the planted-mismatch test proves it can
   fire. Its first run caught the H4 note quoting "≤1e-10" where the measured max error is
-  1.0000000567e-10 (README now quotes the measured value), a stale test count (149 → 208),
-  and a stale Status/citation version (0.2.0 → 0.3.0).
+  1.0000000567e-10 (README now quotes the measured value), a stale test count (149 → 209),
+  and a stale Status/citation version (0.2.0 → 0.3.0). Its first CI run then caught a
+  deeper one: `artifacts/feedback_profit_sweep.csv` (and `feedback_sweep_stats.csv`) had
+  **never been committed** — gitignore-default-denied since v3, so the "recomputes from a
+  committed CSV" claim was clone-broken from the start; both are now committed, and a new
+  guard test asserts every artifact the gate reads is git-tracked (the repo's third
+  unexcepted-artifact incident, now mechanized away).
 
 ## [0.3.0] — 2026-07-22 (alpha)
 

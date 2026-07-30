@@ -46,6 +46,23 @@ from scipy import stats
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / "artifacts"
 
+# Every artifact CSV a claim reads. tests/test_doc_numbers.py asserts each is
+# git-TRACKED, not merely present: artifacts/* is gitignore-default-deny, so a
+# file can exist locally yet be absent on CI/clones, where the fail-closed gate
+# then fails (this exact bug shipped 2026-07-29 with feedback_profit_sweep.csv
+# — the repo's third unexcepted-artifact incident). Add here when a new claim
+# reads a new file, and add the matching `!artifacts/...` gitignore exception.
+ARTIFACTS_READ = [
+    "loop_frontier.csv",
+    "loop_frontier_scm.csv",
+    "seed_sweep_25.csv",
+    "seed_sweep_spaced.csv",
+    "frontier_sweep.csv",
+    "frontier_sweep_spaced.csv",
+    "exploration_frontier.csv",
+    "feedback_profit_sweep.csv",
+]
+
 MINUS = "−"   # the README's minus sign
 CHECK = "✓"
 CROSS = "✗"
