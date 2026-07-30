@@ -6,7 +6,7 @@ pytest -m "not pinned"          # the subset the CI compat matrix runs off-pins
 pytest --cov=cldd --cov-report=term-missing   # coverage of the public (synthetic-only) suite
 ```
 
-Two project-specific validation gates beyond the unit tests:
+Three project-specific validation gates beyond the unit tests:
 
 ```bash
 # Marginal-fidelity gate — SCM cohort vs real-data marginals; exit 0 = pass, 1 = fail/data-missing
@@ -15,6 +15,9 @@ python scripts/check_fidelity.py --data-dir /path/to/dataset   # equivalent, exp
 
 # Reproduce the headline statistic from committed evidence
 python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_25.csv
+
+# Doc-number gate — every figure quoted in the README must recompute from a committed artifact
+python scripts/check_doc_numbers.py     # exit 0 iff every registered claim matches; also runs in CI via pytest
 ```
 
 ## The marginal-fidelity gate
