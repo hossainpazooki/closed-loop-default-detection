@@ -43,7 +43,7 @@ ECE ≤ 0.10). From the committed runs (`artifacts/loop_frontier*.csv`, seed 42)
 On **this seed** both worlds land the frontier at severity 0.4, and the counterfactual
 deliverable breaks at the same boundary: across 25 seeds, g-computation cuts
 strong-propagation counterfactual MAE from 0.099 to 0.086 (−13.5%, positive on 24/25 seeds,
-Wilcoxon p = 1.5e-7) *inside* the frontier — and collapses to a negligible +0.0017 at full
+Wilcoxon p = 1.5e-7; on an independent spaced seed set: 22/25, p = 1.6e-6) *inside* the frontier — and collapses to a negligible +0.0017 at full
 severity, where **no deployable advantage is claimed**. One cause explains both: selection
 through an **unobserved confounder**, which backdoor adjustment and IPW cannot fix. That
 single measured limit — not an unverifiable score — is the deliverable.
@@ -59,8 +59,8 @@ sit at the optimistic end**:
 | flat | 0.2 | **0.4** | 0.4 | 15/25 | 10/25 |
 | SCM | 0.2 | **0.2** | 0.4 | 11/25 | 14/25 |
 
-In the SCM world the *majority of seeds fail one step earlier than the headline*: the median
-frontier is **0.2**, and seed 42's 0.4 is a minority outcome (11/25). The honest statement is
+In the SCM world, on this seed set, the *majority of seeds fail one step earlier than the
+headline*: the median frontier is **0.2**, and seed 42's 0.4 is a minority outcome (11/25). The honest statement is
 that the operating frontier is **0.2–0.4 depending on the draw**, not a clean 0.4 — the
 single-seed table above is a valid instance of it, not its center. Nothing about the
 mechanism changes (the unobserved confounder still explains the failure); what changes is how
@@ -70,6 +70,28 @@ precisely the boundary can be quoted.
 gaps smaller than 8, so some runs share feature draws. No two runs duplicate a cohort, but the
 25 rows are not fully independent — the set is kept for comparability with the counterfactual
 sweep that uses it.
+
+*Caveat, measured (2026-07-29):* both sweeps were re-run on a spaced set — seeds
+{1000 + 16i, i = 0..24}, spaced widely enough that no two runs **within the same generator**
+(loop sweep) or **at the same severity** (counterfactual sweep) share any consumed seed; the
+same seed across severities/generators stays deliberately paired
+(`scripts/run_spaced_sweeps.py`; `artifacts/seed_sweep_spaced.csv`,
+`artifacts/frontier_sweep_spaced.csv`). Two different verdicts:
+
+- **Counterfactual — independent replication; the effect survives.** +0.0129 ± 0.0102,
+  positive on 22/25 seeds, Wilcoxon p = 1.6e-6 (recompute:
+  `python scripts/paired_significance.py --sweep-csv artifacts/seed_sweep_spaced.csv`); at
+  full severity the spaced gap is +0.0024 ± 0.0030 — same conclusion, significant in sign and
+  negligible in magnitude. A source audit during this rerun found a counterfactual run
+  consumes only seeds `{s, s+1000}`, so the *original* counterfactual set was already
+  cross-run independent within each severity: the seed-overlap caveat above genuinely applies
+  to the loop sweep only, and the move from p = 1.5e-7 (24/25) to p = 1.6e-6 (22/25) is
+  replicate variability between two valid designs, not a de-biasing.
+- **Frontier — the overlap was real here, and removing it moves the center.** On the spaced
+  set the distribution shifts toward 0.4: flat median 0.4 (18/25 at 0.4, 7/25 at 0.2), SCM
+  median **0.4** (15/25 at 0.4, 10/25 at 0.2). The overlapping set's SCM median of 0.2 does
+  **not** replicate on seed-disjoint runs; what survives is the range — 0.2–0.4 depending on
+  the draw — with the independent draw putting the SCM center at 0.4.
 
 Reproduce the headline from committed evidence: `python scripts/paired_significance.py`.
 The full independent assessment (methodology, all numbers, what didn't hold) is the
@@ -148,8 +170,8 @@ labels measurably costs the book (H1), but at these severities the *switch* to m
 funding is profitable relative to the prior policy (H2's predicted sign was wrong — reported
 as measured, not softened), and 5% exploration does not pay for itself in-window (H3; the
 policy-book-only secondary H3a is negative too). The **H4 integrity control** — frozen-arm
-paired difference must equal the explored slice's own P&L *exactly* — holds at ≤1e-10 across
-all 900 checked rows, and the answer to the v2-banked question is re-verified at 25 seeds:
+paired difference must equal the explored slice's own P&L *exactly* — holds with max |error|
+1.0e-10 across all 900 checked rows, and the answer to the v2-banked question is re-verified at 25 seeds:
 the declined-ECE alarm fires at generation 1–2 in every ε=0 run (severity 0.4: 25/25 at
 generation 1). Full mechanics in [`docs/how-it-works.md`](docs/how-it-works.md); gates in
 [`docs/validation.md`](docs/validation.md).
@@ -254,7 +276,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 149 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 208 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing
@@ -276,12 +298,14 @@ Build locally: `pip install -e ".[docs]" && sphinx-build -b html -W docs docs/_b
 
 ## Status
 
-`0.2.0` **alpha** on [PyPI](https://pypi.org/project/closed-loop-default-detection/),
+`0.3.0` **alpha** on [PyPI](https://pypi.org/project/closed-loop-default-detection/),
 changelog in [CHANGELOG.md](CHANGELOG.md).
 
 Shipped in 0.1.0: the loop, both synthetic worlds, all correction levers, the fidelity gate,
 the sklearn estimator, CI on three gates. Added in 0.2.0: `cldd.emp` (both EMP variants),
-priced exploration, the EMP-optimal cutoff, and the 25-seed frontier sweep.
+priced exploration, the EMP-optimal cutoff, and the 25-seed frontier sweep. Added in 0.3.0:
+the three-arm feedback-loop profit decomposition (frozen/prior arms, realized book P&L, the
+450-run sweep, hypotheses H1–H4).
 
 CLDD began as a validation harness for the Intuit TechWeek SMB Underwriting Challenge; it is
 not a submission and does not alter challenge files.
@@ -296,7 +320,7 @@ Metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" read
   title   = {{closed-loop-default-detection}: measuring selective-labels default
              detection and the PD model's operating frontier},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.3.0},
   license = {MIT},
   url     = {https://github.com/hossainpazooki/closed-loop-default-detection}
 }

@@ -5,6 +5,32 @@ recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
 initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
+## [Unreleased]
+
+Post-publication robustness (assessment Part III, items III.2-1 and III.3):
+
+- **Spaced-seed replication** (`scripts/run_spaced_sweeps.py`): both the counterfactual and
+  frontier sweeps re-run on the seed set {1000 + 16i, i = 0..24}, seed-disjoint within each
+  generator/severity cell, written to the new `artifacts/seed_sweep_spaced.csv` /
+  `artifacts/frontier_sweep_spaced.csv` — the committed originals untouched. The severity-0.4
+  counterfactual advantage survives (+0.0129 ± 0.0102, 22/25 positive, Wilcoxon p = 1.6e-6).
+  Source audit (adversarially verified): a counterfactual run consumes only `{s, s+1000}`, so
+  the original counterfactual set was already cross-run independent within severity —
+  assessment Part III critique 1's premise applied to the **loop sweep only** (10 colliding
+  run pairs per generator on the old set, confirmed from consumed iterations); the p shift
+  1.5e-7 → 1.6e-6 is replicate variability, not de-biasing. On the seed-disjoint loop sweep
+  the overlapping set's SCM frontier median of 0.2 does **not** replicate: both worlds center
+  at 0.4 (flat 18/25, SCM 15/25 at 0.4). README updated to quote both designs.
+  `paired_significance.py` gains `--sweep-csv`/`--out-csv` (defaults unchanged and verified
+  byte-identical); its severity-1.0 closing note now computes its magnitude from the data
+  instead of hardcoding +0.0017.
+- **Doc-number gate** (`scripts/check_doc_numbers.py` + `tests/test_doc_numbers.py`): every
+  empirical figure quoted in the README now recomputes from a committed artifact in CI, at
+  the precision the README quotes; fail-closed, and the planted-mismatch test proves it can
+  fire. Its first run caught the H4 note quoting "≤1e-10" where the measured max error is
+  1.0000000567e-10 (README now quotes the measured value), a stale test count (149 → 208),
+  and a stale Status/citation version (0.2.0 → 0.3.0).
+
 ## [0.3.0] — 2026-07-22 (alpha)
 
 The **feedback-loop profit decomposition**: three arms price *why* the closed loop costs
