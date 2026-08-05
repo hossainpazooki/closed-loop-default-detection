@@ -18,6 +18,12 @@ artifacts/*
 !artifacts/paired_significance_spaced.csv
 !artifacts/feedback_profit_sweep.csv
 !artifacts/feedback_sweep_stats.csv
+!artifacts/surface_frontier.csv
+!artifacts/surface_counterfactual.csv
+!artifacts/surface_stats.csv
+!artifacts/frontier_sweep_spaced_v4env.csv
+!artifacts/seed_sweep_spaced_v4env.csv
+!artifacts/surface_env.json
 
 # Python
 __pycache__/
