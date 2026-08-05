@@ -185,7 +185,10 @@ surface writes only the three new files named above.
 
 ## 7. Determinism, integrity, and testing
 
-- **I-1 (byte-identity embed gate, publication-blocking):** the surface's
+- **I-1 (byte-identity embed gate, publication-blocking):** *(reference
+  artifacts re-anchored by [Amendment Rev 1.1](#amendment-rev-11--i-1-re-anchored-to-the-recorded-build-environment-2026-08-04);
+  the gate itself — string equality, publication-blocking — is unchanged.)*
+  The surface's
   default-strength cells re-run the *exact* 2026-07-29 spaced-sweep
   configurations, so: `surface_frontier.csv` rows at (flat, 0.7) and
   (scm, 0.55) must be **string-equal field-for-field on every shared column**
@@ -247,3 +250,94 @@ review is a future Part IV. CHANGELOG under `[Unreleased]` → dated at the
   (`TARGET_DECLINED_ECE`, binning, model family).
 - Label accumulation; feedback-module changes; release mechanics (0.4.0
   release is its own later step).
+
+---
+
+## Amendment Rev 1.1 — I-1 re-anchored to the recorded build environment (2026-08-04)
+
+*Operator decision, 2026-08-04. Amends §7's I-1 reference artifacts only. The
+gate's tolerance is untouched: still exact string equality, still
+publication-blocking. Nothing in §§0–6 or §§8–10 changes.*
+
+### What happened
+
+The v4 pilot gate fired on its first run, exactly as designed: the
+default-strength cells did **not** string-match `frontier_sweep_spaced.csv` /
+`seed_sweep_spaced.csv`. Every mismatch was at the far end of the mantissa —
+e.g. `0.03687890042821264` vs the artifact's `0.036878900428212624`.
+
+Measured over the **full** re-baseline (all 50 loop runs / 183 rows and all 50
+evals, every shared column, v4env vs the 2026-07-29 originals):
+
+| | frontier leg | counterfactual leg |
+|---|---|---|
+| numeric fields differing | 172 | 195 |
+| max **absolute** difference | 5.55e-17 | 4.16e-17 |
+| max **relative** difference | 1.46e-15 | 2.85e-12 |
+| fields differing at 4 dp (doc precision) | **0** | **0** |
+| `frontier_severity` / `passed` flips | **0** | n/a |
+
+The counterfactual leg's larger *relative* figure is cancellation, not a
+larger error: its worst cell is `strong_gap = −1.4597748770e-05`, a difference
+of two nearly-equal MAEs, so an absolute discrepancy of 4.16e-17 reads as
+2.85e-12 relative. Absolute drift is ulp-scale on both legs, and — the point
+that matters for every published claim — **no discretized outcome moved**: not
+one seed's frontier severity or pass/fail flipped, and nothing differs at the
+precision any doc quotes.
+
+**The two new knobs were refuted as the cause.** Running the *pre-knob* loop
+verbatim (`SelectiveLabelsLoop(improve_mode="both", generator="flat",
+seed=1000)`, no `generator_kwargs`) reproduces the identical drift against the
+same artifact rows. The knobs' own in-process differential tests
+(default vs explicit-default, both worlds, both legs) pass exactly.
+
+**Cause: the interpreter build changed.** The 2026-07-29 artifacts were
+produced by a local venv that has since been rebuilt; the previous CPython is
+uninstalled and its exact version is unrecoverable from local evidence
+(`py -0p` now lists only 3.14). The pins (`sklearn 1.9.0` / `numpy 2.4.6`) are
+identical; the interpreter's compiled wheels are not. This is the 2026-07-20
+lesson recurring one level down: **byte-determinism is
+(seed, pins, platform, *interpreter build*)** — a determinism baseline captured
+in one environment cannot be met from another, and no amount of correct code
+will close a last-ulp gap of this kind.
+
+### What changes
+
+1. **I-1's reference artifacts are regenerated, not the gate.** The identical
+   spaced-sweep configurations are re-run under the current recorded
+   environment via `scripts/run_spaced_sweeps.py --out-suffix v4env` (the
+   *same* driver and *same* child code that produced the originals — a
+   re-implementation could paper over a real plumbing bug), writing:
+   - `artifacts/frontier_sweep_spaced_v4env.csv`
+   - `artifacts/seed_sweep_spaced_v4env.csv`
+   - `artifacts/surface_env.json` — the environment manifest (python
+     implementation + version, numpy, sklearn, platform) whose absence caused
+     this. Every future baseline carries its provenance.
+2. **I-1 compares against those files**; `run_surface_sweep.py` /
+   `surface_stats.py` point at them. Both are `!artifacts/` -excepted and a
+   guard test asserts they are **git-tracked**, per the 2026-07-29 lock.
+3. **The 2026-07-29 originals are untouched and remain authoritative for every
+   published number.** They are not superseded, not deleted, not "corrected" —
+   the v4env pair exists solely as the embed reference for cells generated in
+   *this* environment. Any doc quoting the spaced sweeps keeps quoting the
+   originals.
+4. **Runtime estimate corrected, trip-wire re-based.** Measured in the pilot on
+   the current environment: loop ≈ 7–11 s, eval ≈ 15 s — roughly **15× faster**
+   than the 2026-07-29 measurements (150 s / 120 s) the §4 budget was built on.
+   The full 300 + 450 matrix is therefore ≈ **3 h**, not ~27.5 h, and needs no
+   overnight tranching. The §7 trip-wire is re-based from (300 s, 240 s) to
+   **(60 s, 60 s)** — still ~5× measured, so ordinary machine-load variance
+   cannot fire it, while a regression to the old per-run cost would. A wire
+   left 20× above actual detects nothing.
+
+### What this costs
+
+The re-anchored gate can no longer prove "these cells reproduce the *published*
+2026-07-29 floats". It proves the weaker, still-load-bearing claim: **the
+surface driver's default-strength cells are byte-identical to running the
+un-knobbed pipeline in the same environment** — which is precisely the
+driver-plumbing bug I-1 exists to catch. Cross-environment reproducibility of
+the published figures is now measured at doc precision (4 dp) by the
+doc-number gate, which is unaffected by ulp-level drift, and by CI's
+version matrix. This limitation is recorded rather than papered over: no
+tolerance was widened to make a red gate green.

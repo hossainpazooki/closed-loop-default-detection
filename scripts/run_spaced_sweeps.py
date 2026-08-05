@@ -23,16 +23,28 @@ The committed originals are never touched. Same discipline as
 process have been observed to exhaust memory), strictly sequential, resumable
 append (skips pairs already present in the output CSV).
 
+``--out-suffix NAME`` (added 2026-08-04, v4 spec Amendment Rev 1.1) re-runs the
+identical configurations into ``*_NAME.csv`` instead, plus an environment
+manifest ``artifacts/surface_env.json``. It exists because the v4 surface's I-1
+byte-identity embed gate compares against these artifacts, and the 2026-07-29
+originals were produced under an interpreter build that no longer exists on this
+machine (same pins, different compiled wheels -> last-ulp drift). The re-run
+deliberately reuses THIS driver's child code so a re-implementation cannot
+paper over a real plumbing bug. Default (empty suffix) behavior is unchanged,
+and the 2026-07-29 originals are never touched or superseded.
+
 Usage:
     python scripts/run_spaced_sweeps.py                       # both sweeps
     python scripts/run_spaced_sweeps.py --part counterfactual # cheaper sweep only
     python scripts/run_spaced_sweeps.py --part frontier
+    python scripts/run_spaced_sweeps.py --out-suffix v4env    # I-1 re-baseline
 """
 from __future__ import annotations
 
 import argparse
 import csv
 import json
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -44,6 +56,7 @@ GENERATORS = ("flat", "scm")
 ROOT = Path(__file__).resolve().parents[1]
 CF_OUT = ROOT / "artifacts" / "seed_sweep_spaced.csv"
 FR_OUT = ROOT / "artifacts" / "frontier_sweep_spaced.csv"
+ENV_MANIFEST = ROOT / "artifacts" / "surface_env.json"
 
 CF_FIELDS = ["seed", "severity", "naive_mae", "gcomp_mae", "naive_bias",
              "gcomp_bias", "naive_strong", "gcomp_strong", "strong_gap",
@@ -117,10 +130,41 @@ def _append(path: Path, fields: list[str], row: dict) -> None:
         w.writerow({k: row[k] for k in fields})
 
 
-def run_counterfactual() -> None:
+def _suffixed(path: Path, suffix: str) -> Path:
+    """artifacts/x.csv + 'v4env' -> artifacts/x_v4env.csv; empty suffix = unchanged."""
+    return path if not suffix else path.with_name(f"{path.stem}_{suffix}{path.suffix}")
+
+
+def write_env_manifest(out: Path = ENV_MANIFEST) -> dict:
+    """Record the build environment a baseline was produced in.
+
+    The absence of exactly this file is what made the 2026-07-29 baseline
+    unreproducible: the pins were recorded, the interpreter build was not.
+    """
+    import numpy
+    import sklearn
+
+    manifest = {
+        "python_implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "python_build": list(platform.python_build()),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "numpy": numpy.__version__,
+        "scikit_learn": sklearn.__version__,
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    print(f"environment manifest -> {out}", flush=True)
+    for k, v in sorted(manifest.items()):
+        print(f"  {k}: {v}", flush=True)
+    return manifest
+
+
+def run_counterfactual(out: Path = CF_OUT) -> None:
     done = set()
-    if CF_OUT.exists():
-        with CF_OUT.open(newline="") as f:
+    if out.exists():
+        with out.open(newline="") as f:
             done = {(int(r["seed"]), float(r["severity"])) for r in csv.DictReader(f)}
     for sev in SEVERITIES:
         for seed in SEEDS:
@@ -129,15 +173,15 @@ def run_counterfactual() -> None:
                 continue
             print(f"running counterfactual seed={seed} severity={sev} ...", flush=True)
             row = _run_child(_CF_CHILD.format(seed=seed, sev=sev))[-1]
-            _append(CF_OUT, CF_FIELDS, row)
+            _append(out, CF_FIELDS, row)
             print(f"  strong_gap={row['strong_gap']:+.4f}", flush=True)
-    print(f"counterfactual sweep complete -> {CF_OUT}", flush=True)
+    print(f"counterfactual sweep complete -> {out}", flush=True)
 
 
-def run_frontier() -> None:
+def run_frontier(out: Path = FR_OUT) -> None:
     done = set()
-    if FR_OUT.exists():
-        with FR_OUT.open(newline="") as f:
+    if out.exists():
+        with out.open(newline="") as f:
             done = {(int(r["seed"]), r["generator"]) for r in csv.DictReader(f)}
     for generator in GENERATORS:
         for seed in SEEDS:
@@ -147,21 +191,33 @@ def run_frontier() -> None:
             print(f"running frontier seed={seed} generator={generator} ...", flush=True)
             rows = _run_child(_FR_CHILD.format(seed=seed, generator=generator))
             for row in rows:
-                _append(FR_OUT, FR_FIELDS, row)
+                _append(out, FR_FIELDS, row)
             frontier = rows[-1]["frontier_severity"] if rows else None
             print(f"  {len(rows)} rounds, frontier_severity={frontier}", flush=True)
-    print(f"frontier sweep complete -> {FR_OUT}", flush=True)
+    print(f"frontier sweep complete -> {out}", flush=True)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--part", choices=("counterfactual", "frontier", "both"),
                     default="both")
+    ap.add_argument(
+        "--out-suffix", default="",
+        help=(
+            "write to artifacts/*_SUFFIX.csv + an environment manifest instead of "
+            "the 2026-07-29 originals (v4 spec Amendment Rev 1.1); the originals "
+            "are never touched"
+        ),
+    )
     args = ap.parse_args()
+    cf_out = _suffixed(CF_OUT, args.out_suffix)
+    fr_out = _suffixed(FR_OUT, args.out_suffix)
+    if args.out_suffix:
+        write_env_manifest()
     if args.part in ("counterfactual", "both"):
-        run_counterfactual()
+        run_counterfactual(cf_out)
     if args.part in ("frontier", "both"):
-        run_frontier()
+        run_frontier(fr_out)
     print("SPACED SWEEPS COMPLETE", flush=True)
 
 
