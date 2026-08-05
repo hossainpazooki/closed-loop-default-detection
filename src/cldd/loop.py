@@ -92,13 +92,18 @@ def make_generator(
     seed: int,
     n_applicants: int,
     approval_rate: float,
+    **extra,
 ):
     """Fresh single-shot cohort generator (shared by this loop and ``feedback``).
 
     A fresh instance per cohort is required for determinism — both generator
     classes consume their own ``Generator(PCG64(seed))`` on ``generate_cohort``,
     so reusing an instance would silently shift streams. The SCM path always
-    sets ``independent_selection_noise=True`` (see ``GENERATORS`` note).
+    sets ``independent_selection_noise=True`` (see ``GENERATORS`` note). Any
+    ``**extra`` kwargs are forwarded verbatim to the generator constructor (v4:
+    the surface driver passes ``unobserved_strength``); the scm path's
+    ``independent_selection_noise=True`` cannot be overridden this way — a
+    duplicate keyword raises ``TypeError``.
     """
     if generator not in GENERATORS:
         raise ValueError(f"generator must be one of {GENERATORS}; got {generator!r}")
@@ -118,12 +123,14 @@ def make_generator(
             approval_rate=approval_rate,
             seed=seed,
             independent_selection_noise=True,
+            **extra,
         )
     return SyntheticBorrowerGenerator(
         n_applicants=n_applicants,
         selection_severity=severity,
         approval_rate=approval_rate,
         seed=seed,
+        **extra,
     )
 
 
@@ -203,6 +210,7 @@ class SelectiveLabelsLoop:
         generator: str = "flat",
         exploration_rate: float = 0.0,
         correctors: list[Corrector] | None = None,
+        generator_kwargs: dict | None = None,
     ) -> None:
         if improve_mode not in IMPROVE_MODES:
             raise ValueError(f"improve_mode must be one of {IMPROVE_MODES}; got {improve_mode!r}")
@@ -211,6 +219,9 @@ class SelectiveLabelsLoop:
         if not 0.0 <= exploration_rate < 1.0:
             raise ValueError(f"exploration_rate must be in [0, 1); got {exploration_rate!r}")
         self.generator = generator
+        # Extra constructor kwargs forwarded to make_generator (v4 surface knob).
+        # None (the default) is byte-identical to the pre-knob path.
+        self.generator_kwargs = generator_kwargs
         self.exploration_rate = exploration_rate
         self.target_declined_ece = target_declined_ece
         self.start_severity = start_severity
@@ -265,6 +276,7 @@ class SelectiveLabelsLoop:
             seed=seed,
             n_applicants=self.n_applicants,
             approval_rate=self.approval_rate,
+            **(self.generator_kwargs or {}),
         )
 
     def _generate(self, severity: float, iteration: int) -> dict:

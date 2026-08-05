@@ -632,6 +632,7 @@ def run_counterfactual_eval(
     n_query_applicants: int = 300,
     seed: int = config.RANDOM_SEED,
     generator: StructuralBorrowerGenerator | None = None,
+    unobserved_strength: float | None = None,
 ) -> CounterfactualResult:
     """Build a cohort, generate Deliverable-C-style queries, grade the estimators.
 
@@ -644,13 +645,27 @@ def run_counterfactual_eval(
     Both deployable estimators are fit on the APPROVED rows only (selective-labels
     regime), so their conditionals are distorted by selection — exactly the
     confound g-computation's backdoor adjustment is meant to repair.
+
+    ``unobserved_strength`` (v4 surface knob) is forwarded to the internal
+    ``StructuralBorrowerGenerator`` construction only when ``generator`` is None;
+    the effective value is echoed in ``meta``. ``None`` (the default) is
+    byte-identical to the pre-knob path.
     """
+    if generator is not None and unobserved_strength is not None:
+        raise ValueError(
+            "unobserved_strength is forwarded to the internal generator "
+            "construction only; pass it OR a pre-built generator, not both "
+            "(silently ignoring it would let a driver drift from the eval)"
+        )
     if generator is None:
-        generator = StructuralBorrowerGenerator(
+        gen_kwargs: dict = dict(
             n_applicants=n_applicants,
             selection_severity=selection_severity,
             seed=seed,
         )
+        if unobserved_strength is not None:
+            gen_kwargs["unobserved_strength"] = unobserved_strength
+        generator = StructuralBorrowerGenerator(**gen_kwargs)
     cohort = generator.generate_cohort()
     state = cohort["scm_state"]
     features = cohort["features"]
@@ -763,5 +778,6 @@ def run_counterfactual_eval(
             "n_applicants": n_applicants,
             "seed": seed,
             "approval_rate": float(approved.mean()),
+            "unobserved_strength": float(generator.unobserved_strength),
         },
     )
