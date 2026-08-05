@@ -276,7 +276,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 209 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 228 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing
