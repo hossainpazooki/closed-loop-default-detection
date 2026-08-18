@@ -25,9 +25,22 @@ v4 Option A — the `unobserved_strength` × severity surface (spec
   spaced re-baseline `*_v4env.csv`; environment manifest `artifacts/surface_env.json`).
   Writes `artifacts/surface_stats.csv`. Spec Rev 1.2 corrects Rev 1.1's counterfactual
   max-abs drift figure (4.16e-17 → 6.94e-17; conclusions unchanged).
-- The confirmatory verdicts and the corresponding README/docs qualification land together
-  in a separate change (spec §3's falsification statement; per §9 gate 6 the verdicts were
-  triple-recomputed — script, lead, independent skeptic — with full agreement).
+- **Verdicts + qualification (spec §3, same change):** all four pre-registered hypotheses
+  came back **not confirmed** (triple-recomputed per §9 gate 6 — script, lead, and an
+  independent skeptic, in full agreement), so the README's one-cause mechanism claim is
+  withdrawn as measured and replaced by a registered v4 section: the wall stands at
+  strength 0 (flat 25/25 seeds at 0.4, confounder off), the axis bites only at strength
+  1.0 (observed post-hoc, a future pre-registration rather than a confirmation), and the
+  counterfactual gap runs opposite the predicted direction. New `surface-verdicts` claim
+  in the doc-number gate recomputes every quoted figure from both surface CSVs (added to
+  `ARTIFACTS_READ`, covered by the tracked-status guard) and refuses the "not confirmed"
+  literal unless all four floor checks still fail. Long-form in `how-it-works.md`; gate
+  row in `validation.md`; knob rows in `configuration.md`.
+- **I-1 frontier leg now fails closed on absent cells**: a cell missing from *both* sides
+  of the byte-identity comparison previously zipped over nothing and passed silently
+  (latent — never reachable in a live run; `docs/learnings/2026-08-18-fail-closed-gate-
+  with-one-leg-that-isnt.md`). One-line guard + a regression test pinning both legs;
+  suite 230.
 
 Post-publication robustness (assessment Part III, items III.2-1 and III.3):
 

@@ -44,9 +44,12 @@ On **this seed** both worlds land the frontier at severity 0.4, and the counterf
 deliverable breaks at the same boundary: across 25 seeds, g-computation cuts
 strong-propagation counterfactual MAE from 0.099 to 0.086 (−13.5%, positive on 24/25 seeds,
 Wilcoxon p = 1.5e-7; on an independent spaced seed set: 22/25, p = 1.6e-6) *inside* the frontier — and collapses to a negligible +0.0017 at full
-severity, where **no deployable advantage is claimed**. One cause explains both: selection
-through an **unobserved confounder**, which backdoor adjustment and IPW cannot fix. That
-single measured limit — not an unverifiable score — is the deliverable.
+severity, where **no deployable advantage is claimed**. v1–v3 read one cause into both:
+selection through an **unobserved confounder**, which backdoor adjustment and IPW cannot fix.
+v4 then tested that attribution by direct intervention and **withdrew it** — the wall stands
+with the confounder switched off (see
+[the cause, tested](#the-cause-tested-by-intervention-v4)). The measured limit — not an
+unverifiable score — is still the deliverable; its cause is now measured as open.
 
 ### The frontier is a distribution, not a point (v2)
 
@@ -62,9 +65,9 @@ sit at the optimistic end**:
 In the SCM world, on this seed set, the *majority of seeds fail one step earlier than the
 headline*: the median frontier is **0.2**, and seed 42's 0.4 is a minority outcome (11/25). The honest statement is
 that the operating frontier is **0.2–0.4 depending on the draw**, not a clean 0.4 — the
-single-seed table above is a valid instance of it, not its center. Nothing about the
-mechanism changes (the unobserved confounder still explains the failure); what changes is how
-precisely the boundary can be quoted.
+single-seed table above is a valid instance of it, not its center. Nothing about the boundary
+changes; what changes is how precisely it can be quoted. (The mechanism attribution itself
+was later withdrawn by v4's interventional test — see below.)
 
 *Caveat on the sweep:* loop seed `s` consumes generator seeds `s..s+7`, and the 25-seed set has
 gaps smaller than 8, so some runs share feature draws. No two runs duplicate a cohort, but the
@@ -97,6 +100,35 @@ Reproduce the headline from committed evidence: `python scripts/paired_significa
 The full independent assessment (methodology, all numbers, what didn't hold) is the
 accompanying article, [`docs/assessment.md`](docs/assessment.md) — a **dated snapshot**, written
 against the single-seed frontier and not retro-fitted with the distribution above.
+
+### The cause, tested by intervention (v4)
+
+Every claim above measured the worlds at their **default** confounder strength. v4 makes that
+strength an explicit axis: two additive knobs sweep `unobserved_strength` over
+{0, 0.2, 0.4, 0.55, 0.7, 1.0} in both worlds — 300 loop runs and 450 counterfactual evals
+(`artifacts/surface_frontier.csv`, `artifacts/surface_counterfactual.csv`) — against four
+pre-registered confirmatory hypotheses (Holm-corrected, m = 4, sign test AND Wilcoxon plus
+effect floors, the falsification statement written before the data; spec Rev 1.2). The
+pre-registered attack fired: all four hypotheses were **not confirmed**, and the one-cause
+reading is withdrawn as measured, not softened:
+
+- **The wall stands with the confounder off.** At strength 0.0 the flat world's frontier sits
+  at 0.4 on 25/25 seeds, and the SCM median is the same 0.4 — the frontier's *existence* is
+  not confounder-caused.
+- **The axis is real but only bites at the extreme:** median frontier severity is **0.4** at
+  every strength up to 0.7 and moves to **0.2** only at strength 1.0, in both worlds. At the
+  flat default a minority effect exists — 7/7 of the seeds that moved did so in the predicted
+  direction (Holm-adjusted sign-test p = 0.031) — but it sits below the pre-registered
+  one-step floor. The strength-1.0 move was observed post-hoc and is a hypothesis for a
+  future pre-registration, not a confirmation.
+- **The counterfactual gap runs opposite the predicted direction:** the median
+  strong-propagation gap at severity 0.4 goes +0.0152 → +0.0135 → +0.0090 as strength rises
+  0.0 → 0.55 → 1.0.
+
+What survives: every boundary measurement above — the frontier, its 0.2–0.4 range, the
+counterfactual collapse. What is withdrawn: the sentence that one cause explains them.
+Recompute everything: `python scripts/surface_stats.py` (fail-closed on missing cells;
+enforces the byte-identity embed gate against the committed re-baseline).
 
 ## Pricing the frontier (v2)
 
@@ -276,7 +308,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 229 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 230 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing

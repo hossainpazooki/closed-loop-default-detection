@@ -61,6 +61,8 @@ ARTIFACTS_READ = [
     "frontier_sweep_spaced.csv",
     "exploration_frontier.csv",
     "feedback_profit_sweep.csv",
+    "surface_frontier.csv",
+    "surface_counterfactual.csv",
 ]
 
 MINUS = "−"   # the README's minus sign
@@ -391,6 +393,79 @@ def claim_test_count() -> list[str]:
     return ["`pytest` — %d tests, all synthetic" % n]
 
 
+def claim_surface_verdicts() -> list[str]:
+    """README "The cause, tested" (v4) <- surface_frontier.csv / surface_counterfactual.csv.
+
+    Recomputes the corner count, the strength-median profile, H-S1f's sign test
+    (exact binomial, Holm x4), and the gap-direction medians. Also re-derives all
+    four confirmatory floor checks and refuses to emit the "not confirmed" literal
+    unless every one of them actually fails its floor -- the gate must not let the
+    README claim a falsification the data no longer supports.
+    """
+    import math
+
+    strengths = (0.0, 0.2, 0.4, 0.55, 0.7, 1.0)
+    frontier: dict = {}
+    for r in _rows("surface_frontier.csv"):
+        key = (float(r["unobserved_strength"]), r["generator"], int(r["seed"]))
+        frontier[key] = float(r["frontier_severity"])
+    seeds = sorted({k[2] for k in frontier})
+    assert len(seeds) == 25, "expected 25 surface seeds"
+
+    med = {}
+    for v in strengths:
+        for w in ("flat", "scm"):
+            vals = sorted(frontier[(v, w, s)] for s in seeds)
+            assert len(vals) == 25, f"missing cells at ({v}, {w})"
+            med[(v, w)] = vals[12]
+    low = {med[(v, w)] for v in strengths[:5] for w in ("flat", "scm")}
+    assert len(low) == 1 and med[(1.0, "flat")] == med[(1.0, "scm")], \
+        "strength-median profile no longer uniform; README v4 text is stale"
+    low_med, high_med = low.pop(), med[(1.0, "flat")]
+
+    corner = sum(1 for s in seeds if frontier[(0.0, "flat", s)] == 0.4)
+
+    d1f = [frontier[(0.0, "flat", s)] - frontier[(0.7, "flat", s)] for s in seeds]
+    moved = [d for d in d1f if d != 0]
+    pos = sum(1 for d in moved if d > 0)
+    n = len(moved)
+    p_sign = sum(math.comb(n, k) for k in range(pos, n + 1)) / 2 ** n
+    holm = min(1.0, 4 * p_sign)
+
+    gap: dict = {}
+    for r in _rows("surface_counterfactual.csv"):
+        key = (float(r["unobserved_strength"]), float(r["severity"]), int(r["seed"]))
+        gap[key] = float(r["strong_gap"])
+
+    def gap_med(v: float, sev: float) -> float:
+        vals = sorted(gap[(v, sev, s)] for s in seeds)
+        assert len(vals) == 25, f"missing cf cells at ({v}, {sev})"
+        return vals[12]
+
+    # all-four floor re-derivation (H-S1: one grid step; H-S2: strength-0 scale)
+    d1s = [frontier[(0.0, "scm", s)] - frontier[(0.55, "scm", s)] for s in seeds]
+    d2a = [gap[(0.55, 0.4, s)] - gap[(0.0, 0.4, s)] for s in seeds]
+    delta = lambda v, s: gap[(v, 0.4, s)] - gap[(v, 1.0, s)]
+    d2b = [delta(0.55, s) - delta(0.0, s) for s in seeds]
+    fl2a = sorted(abs(gap[(0.0, 0.4, s)]) for s in seeds)[12]
+    fl2b = sorted(abs(delta(0.0, s)) for s in seeds)[12]
+    medians = [sorted(d)[12] for d in (d1f, d1s, d2a, d2b)]
+    floors = [0.2, 0.2, fl2a, fl2b]
+    assert all(m < f for m, f in zip(medians, floors)), \
+        "a confirmatory hypothesis now clears its floor; the 'not confirmed' README claim is stale"
+
+    return [
+        "all four hypotheses were **not confirmed**",
+        "At strength 0.0 the flat world's frontier sits at 0.4 on %d/25 seeds" % corner,
+        "median frontier severity is **%.1f** at every strength up to 0.7 and moves to "
+        "**%.1f** only at strength 1.0, in both worlds" % (low_med, high_med),
+        "%d/%d of the seeds that moved did so in the predicted direction "
+        "(Holm-adjusted sign-test p = %.3f)" % (pos, n, holm),
+        "gap at severity 0.4 goes %s → %s → %s as strength rises"
+        % tuple(signed(gap_med(v, 0.4), 4) for v in (0.0, 0.55, 1.0)),
+    ]
+
+
 CLAIMS = [
     ("frontier-table-seed42", "README.md", claim_frontier_table_seed42),
     ("counterfactual-headline", "README.md", claim_counterfactual_headline),
@@ -399,6 +474,7 @@ CLAIMS = [
     ("exploration-price", "README.md", claim_exploration_price),
     ("feedback-hypotheses", "README.md", claim_feedback_hypotheses),
     ("spaced-replication", "README.md", claim_spaced_replication),
+    ("surface-verdicts", "README.md", claim_surface_verdicts),
     ("package-version", "README.md", claim_package_version),
     ("test-count", "README.md", claim_test_count),
 ]

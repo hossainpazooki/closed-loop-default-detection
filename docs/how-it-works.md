@@ -74,6 +74,25 @@ generation-to-generation variability). H4 is an *integrity control*, not a hypot
 frozen-arm eps difference must equal the explored slice's own P&L exactly, verifying the
 flags freeze what they claim to freeze.
 
+## Intervening on the confounder (v4)
+
+Everything above measures the worlds at their default unobserved-confounder strength —
+which leaves the causal story ("one cause explains both failure modes") a reading, not a
+result. v4 turns that reading into an intervention: `generator_kwargs` on the loop and
+`unobserved_strength` on `run_counterfactual_eval` sweep the confounder's strength as an
+explicit axis over a 6-point grid in both worlds, against four confirmatory hypotheses
+pre-registered with Holm correction, effect floors, and a falsification statement written
+before the data (spec `2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2).
+
+The pre-registered attack fired. All four hypotheses came back not confirmed — the
+frontier wall stands with the confounder switched off, and the counterfactual gap moves
+opposite the predicted direction — so the one-cause attribution is withdrawn, as measured.
+The wall does move at maximum strength, observed post-hoc: a hypothesis for a future
+pre-registration, not a confirmation. Every figure behind this paragraph is quoted and
+registered in the [README's v4 section](https://github.com/hossainpazooki/closed-loop-default-detection#the-cause-tested-by-intervention-v4)
+and recomputes via `scripts/surface_stats.py`, which fail-closes on missing cells and
+enforces a byte-identity embed gate before reporting anything.
+
 ## Why it is useful
 
 - **Earlier, broader detection.** The loop scores and *calibrates* default risk on the

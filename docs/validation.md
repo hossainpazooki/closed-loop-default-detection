@@ -58,6 +58,22 @@ firing); and the full-matrix H4 identity (≤ 1e-6 on stored `round(10)` values 
 Reproduce: `python scripts/run_feedback_sweep.py --workers 4` (shard-per-run, resumable),
 then `python scripts/feedback_sweep_stats.py`.
 
+## The v4 surface gates
+
+The `unobserved_strength` × severity surface (300 loop runs + 450 counterfactual evals)
+publishes nothing without passing, in order: the **pilot gate**
+(`run_surface_sweep.py --pilot` — byte-match against the committed re-baseline,
+non-vacuity, and a per-run budget trip-wire; its maiden firing caught a real
+determinism break, see spec Amendments Rev 1.1/1.2); **completeness** (the driver and
+`surface_stats.py` independently require zero missing cells — the analysis is
+unevaluable, not partial, on an incomplete matrix); and the **I-1 byte-identity embed
+gate** (default-strength cells string-equal, field-for-field, to the committed
+recorded-environment re-baseline `*_v4env.csv`; fail-closed on absent cells on both
+legs, and `artifacts/surface_env.json` records the environment every baseline was built
+in). The four confirmatory verdicts behind the README's v4 section were additionally
+recomputed by an independent skeptic pass before the docs were updated. Reproduce:
+`python scripts/run_surface_sweep.py` (resumable), then `python scripts/surface_stats.py`.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:

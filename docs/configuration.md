@@ -15,6 +15,8 @@ drivers. `src/cldd/config.py` is the single source of truth:
 | `TARGET_BASE_DEFAULT_RATE` / `DEFAULT_APPROVAL_RATE` | `0.17` / `0.60` | planted base rate / prior-policy funding rate |
 | `FeedbackLoop(retrain=...)` | `True` | `False` = frozen arm: the generation-0 model is deployed unchanged forever; exploration starts at generation 1 and never enters training (v3) |
 | `FeedbackLoop(policy_mode=...)` | `"model"` | `"prior"` = prior-policy funding every generation, model trained for metrics only; unknown values raise `ValueError` (v3) |
+| `SelectiveLabelsLoop(generator_kwargs=...)` | `None` | additive world-construction overrides forwarded to the loop's generator (e.g. `{"unobserved_strength": 0.2}`); unset = the pre-v4 path, byte-identical (test-enforced) (v4) |
+| `run_counterfactual_eval(unobserved_strength=...)` | `None` | eval-side confounder strength for the v4 surface; unset = the generator's default, byte-identical (test-enforced) (v4) |
 | `TERM_DAYS` / `APR` / `ORIGINATION_FEE_RATE` | `60` / `0.35` / `0.03` | loan economics of the synthetic daily-ACH term loan |
 | `POLICY_PD_THRESHOLD` | `0.5` | PD cutoff used **only** for the detection-F1 diagnostic (approve/decline economics are out of scope) |
 | `EMPC_P0` / `EMPC_P1` / `EMPC_ROI` | `0.55` / `0.10` / `0.2644` | literature EMPC prior (Verbraken et al. 2014): P(λ=0), P(λ=1), and the constant ROI. Source-verified; the CRAN `EMP::empCreditScoring` defaults, so `empc` stays benchmark-comparable. **Not** this harness's own economics — see the [README](https://github.com/hossainpazooki/closed-loop-default-detection#pricing-the-frontier-v2) on why they disagree |
