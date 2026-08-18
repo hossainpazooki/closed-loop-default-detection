@@ -341,3 +341,56 @@ the published figures is now measured at doc precision (4 dp) by the
 doc-number gate, which is unaffected by ulp-level drift, and by CI's
 version matrix. This limitation is recorded rather than papered over: no
 tolerance was widened to make a red gate green.
+
+---
+
+## Amendment Rev 1.2 — arithmetic correction to Rev 1.1's drift table (2026-08-18)
+
+*Corrects one measured figure and one loose phrase in
+[Amendment Rev 1.1](#amendment-rev-11--i-1-re-anchored-to-the-recorded-build-environment-2026-08-04).
+Amends **no decision, no gate, and no tolerance** — Rev 1.1's design stands
+verbatim. Rev 1.1's text is left intact above; this revision supersedes the two
+values named here, per the repo's amend-by-revision rule.*
+
+### What was wrong
+
+Rev 1.1's drift table reports the counterfactual leg's **max absolute difference
+as 4.16e-17**. Recomputed independently from the committed CSV pair
+(`seed_sweep_spaced_v4env.csv` vs `seed_sweep_spaced.csv`) on 2026-08-18 — twice,
+by the Task-5a skeptic and again by the lead:
+
+| quantity | Rev 1.1 | corrected |
+|---|---|---|
+| cf numeric fields differing | 195 | 195 (unchanged) |
+| cf **max absolute** difference | ~~4.16e-17~~ | **6.939e-17** |
+| cf max relative difference | 2.85e-12 | 2.852e-12 (unchanged) |
+| frontier leg, all figures | 172 / 5.55e-17 / 1.46e-15 | unchanged, reproduced exactly |
+| fields differing at 4 dp | 0 | 0 (unchanged) |
+| `frontier_severity` / `passed` flips | 0 | 0 (unchanged) |
+
+The true worst cell is **severity 0.4, seed 1016, field `naive_strong`**:
+`0.09658028223179957` vs `0.0965802822317995`.
+
+**How the error arose:** 4.1633e-17 is *exactly* the absolute difference of the
+worst-**relative** cell (`strong_gap`, sev 1.0, seed 1352) — the cell Rev 1.1's
+prose discusses by hand to explain the cancellation. That cell's absolute figure
+was reported as the leg's maximum.
+
+**Second correction (phrasing):** `scripts/run_surface_sweep.py:68` states the
+mismatch is "entirely in the last ulp." At 0.0966 one ulp is 1.3878e-17, so
+6.939e-17 is **5.0 ulps**. The accurate phrasing is "within a few ulps."
+
+### What it does not change
+
+Every conclusion in Rev 1.1 survives: the drift is still ulp-scale, still zero at
+the 4 dp any doc quotes, and still flips no discretized outcome. The re-anchor
+decision, the I-1 gate, and its tolerance are untouched. Recorded because the
+figure is quotable — it appears in the essay-series evidence pack — and a
+corrections essay may not repeat an uncorrected number.
+
+### Robustness note (new evidence, 2026-08-18)
+
+The "zero fields differing at 4 dp" claim was checked for luck as well as truth:
+the closest differing value lies 1.29e-07 (frontier) / 2.59e-07 (cf) from a 4-dp
+rounding boundary, against drift of at most 7e-17 — roughly nine orders of
+magnitude of headroom. The claim is structural, not a near-miss.
