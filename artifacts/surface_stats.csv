@@ -1,0 +1,43 @@
+metric,hypothesis,world,strength,severity,role,direction,n_seeds,median_stat,mean_stat,floor,clears_floor,sign_k,sign_n,sign_p_raw,sign_p_holm,wilcoxon_stat,wilcoxon_p_raw,wilcoxon_p_holm,confirmed,n_never_passed,detail_json
+hypothesis,H-S1f,flat,,,confirmatory,positive,25,0.0,0.056,0.2,False,7.0,7.0,0.0078125,0.03125,28.0,0.00407548579675135,0.0163019431870054,False,0.0,
+hypothesis,H-S1s,scm,,,confirmatory,positive,25,0.0,0.024,0.2,False,5.0,7.0,0.2265625,0.6796875,20.0,0.12841962897892828,0.38525888693678484,False,0.0,
+hypothesis,H-S2a,scm,,,confirmatory,positive,25,0.0005,-0.0019,0.0152,False,14.0,25.0,0.34501898288726807,0.6900379657745361,139.0,0.7375437021255493,1.0,False,0.0,
+hypothesis,H-S2b,scm,,,confirmatory,positive,25,0.003,-0.001,0.0122,False,14.0,25.0,0.34501898288726807,0.6900379657745361,162.0,0.5105423629283905,1.0,False,0.0,
+corner,corner_frontier,flat,0.0,,descriptive,n/a,25,0.4,,,,0.0,25.0,,,,,,,0.0,
+corner,corner_frontier,scm,0.0,,descriptive,n/a,25,0.4,,,,0.0,25.0,,,,,,,0.0,
+corner,corner_gap,scm,0.0,0.4,descriptive,n/a,25,0.0152,,,,,,,,,,,,,
+corner,corner_gap,scm,0.0,0.6,descriptive,n/a,25,0.0072,,,,,,,,,,,,,
+corner,corner_gap,scm,0.0,0.8,descriptive,n/a,25,0.0046,,,,,,,,,,,,,
+corner,corner_gap,scm,0.0,1.0,descriptive,n/a,25,0.0026,,,,,,,,,,,,,
+surface_frontier,,flat,0.0,,descriptive,n/a,25,0.4,0.4,,,,,,,,,,,0.0,"{""min"": 0.4, ""max"": 0.4}"
+surface_frontier,,flat,0.2,,descriptive,n/a,25,0.4,0.4,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.6}"
+surface_frontier,,flat,0.4,,descriptive,n/a,25,0.4,0.384,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,flat,0.55,,descriptive,n/a,25,0.4,0.344,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,flat,0.7,,descriptive,n/a,25,0.4,0.344,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,flat,1.0,,descriptive,n/a,25,0.2,0.24,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,0.0,,descriptive,n/a,25,0.4,0.344,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,0.2,,descriptive,n/a,25,0.4,0.328,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,0.4,,descriptive,n/a,25,0.4,0.336,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,0.55,,descriptive,n/a,25,0.4,0.32,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,0.7,,descriptive,n/a,25,0.4,0.304,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_frontier,,scm,1.0,,descriptive,n/a,25,0.2,0.232,,,,,,,,,,,0.0,"{""min"": 0.2, ""max"": 0.4}"
+surface_gap,,scm,0.0,0.4,descriptive,n/a,25,0.0152,0.0148,,,,,,,,,,,,"{""min"": -0.003993674648714335, ""max"": 0.028850438781286958}"
+surface_gap,,scm,0.0,0.6,descriptive,n/a,25,0.0066,0.0083,,,,,,,,,,,,"{""min"": -0.009704916115030285, ""max"": 0.028208374897717603}"
+surface_gap,,scm,0.0,0.8,descriptive,n/a,25,0.0039,0.0038,,,,,,,,,,,,"{""min"": -0.009114325780108262, ""max"": 0.014171692518030438}"
+surface_gap,,scm,0.0,1.0,descriptive,n/a,25,0.0026,0.0033,,,,,,,,,,,,"{""min"": -0.0003395960304182766, ""max"": 0.015324591168050489}"
+surface_gap,,scm,0.55,0.4,descriptive,n/a,25,0.0135,0.0129,,,,,,,,,,,,"{""min"": -0.0062204987524156485, ""max"": 0.032571716233134304}"
+surface_gap,,scm,0.55,0.6,descriptive,n/a,25,0.0076,0.0093,,,,,,,,,,,,"{""min"": -0.0004580569540270085, ""max"": 0.02170117776135616}"
+surface_gap,,scm,0.55,0.8,descriptive,n/a,25,0.004,0.0038,,,,,,,,,,,,"{""min"": -0.004784643452775461, ""max"": 0.01920532826426445}"
+surface_gap,,scm,0.55,1.0,descriptive,n/a,25,0.0015,0.0024,,,,,,,,,,,,"{""min"": -0.002466194582791681, ""max"": 0.012168946355557805}"
+surface_gap,,scm,1.0,0.4,descriptive,n/a,25,0.009,0.0109,,,,,,,,,,,,"{""min"": -0.0055469939007413566, ""max"": 0.03290510040926804}"
+surface_gap,,scm,1.0,0.6,descriptive,n/a,25,0.0057,0.0067,,,,,,,,,,,,"{""min"": -0.003805689219935307, ""max"": 0.015008634699865575}"
+surface_gap,,scm,1.0,0.8,descriptive,n/a,25,0.0017,0.0018,,,,,,,,,,,,"{""min"": -0.011243178334335135, ""max"": 0.009717689382329017}"
+surface_gap,,scm,1.0,1.0,descriptive,n/a,25,0.0013,0.0014,,,,,,,,,,,,"{""min"": -0.006913142603335906, ""max"": 0.007305323068249395}"
+surface_gap,,scm,0.2,0.4,descriptive,n/a,25,0.0197,0.0184,,,,,,,,,,,,"{""min"": 0.003985542523949809, ""max"": 0.033606823073025316}"
+surface_gap,,scm,0.2,1.0,descriptive,n/a,25,0.0028,0.0032,,,,,,,,,,,,"{""min"": -0.001062907287451259, ""max"": 0.008693846624726151}"
+surface_gap,,scm,0.4,0.4,descriptive,n/a,25,0.0148,0.0145,,,,,,,,,,,,"{""min"": -0.0016431992509829824, ""max"": 0.04161181866962352}"
+surface_gap,,scm,0.4,1.0,descriptive,n/a,25,0.003,0.003,,,,,,,,,,,,"{""min"": -0.0022506905810131816, ""max"": 0.009892458984105568}"
+surface_gap,,scm,0.7,0.4,descriptive,n/a,25,0.0126,0.0123,,,,,,,,,,,,"{""min"": -0.013307414031691195, ""max"": 0.028832297712516858}"
+surface_gap,,scm,0.7,1.0,descriptive,n/a,25,0.0017,0.0024,,,,,,,,,,,,"{""min"": -0.002386099882502893, ""max"": 0.010219463791468791}"
+monotonicity,frontier_nonincreasing,flat,,,descriptive,n/a,25,,,,True,,,,,,,,,,"{""0.0"": 0.4, ""0.2"": 0.4, ""0.4"": 0.4, ""0.55"": 0.4, ""0.7"": 0.4, ""1.0"": 0.2}"
+monotonicity,frontier_nonincreasing,scm,,,descriptive,n/a,25,,,,True,,,,,,,,,,"{""0.0"": 0.4, ""0.2"": 0.4, ""0.4"": 0.4, ""0.55"": 0.4, ""0.7"": 0.4, ""1.0"": 0.2}"
