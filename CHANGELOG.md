@@ -7,6 +7,28 @@ initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-defa
 
 ## [Unreleased]
 
+v4 Option A — the `unobserved_strength` × severity surface (spec
+`docs/superpowers/specs/2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2):
+
+- **Two additive knobs**, byte-exact at their defaults (differential tests enforce it):
+  `SelectiveLabelsLoop(generator_kwargs=...)` forwards world-construction overrides to the
+  loop's generator, and `run_counterfactual_eval(unobserved_strength=...)` sets the
+  confounder strength on the eval side. Neither changes any existing code path when unset.
+- **Surface sweep driver** (`scripts/run_surface_sweep.py`): resumable subprocess-per-run
+  sweep over the 6-point strength grid {0, .2, .4, .55, .7, 1.0} × both worlds (300 loop
+  runs) and × severities (450 evals), with a mechanical pilot gate (byte-match +
+  non-vacuity + budget trip-wire) required before any matrix launch. Artifacts:
+  `artifacts/surface_frontier.csv`, `artifacts/surface_counterfactual.csv`.
+- **Fail-closed analysis** (`scripts/surface_stats.py`): recomputes every to-be-published
+  surface number from the two committed CSVs, halts on missing cells, and enforces the I-1
+  byte-identity embed gate (default-strength cells string-equal to the recorded-environment
+  spaced re-baseline `*_v4env.csv`; environment manifest `artifacts/surface_env.json`).
+  Writes `artifacts/surface_stats.csv`. Spec Rev 1.2 corrects Rev 1.1's counterfactual
+  max-abs drift figure (4.16e-17 → 6.94e-17; conclusions unchanged).
+- The confirmatory verdicts and the corresponding README/docs qualification land together
+  in a separate change (spec §3's falsification statement; per §9 gate 6 the verdicts were
+  triple-recomputed — script, lead, independent skeptic — with full agreement).
+
 Post-publication robustness (assessment Part III, items III.2-1 and III.3):
 
 - **Spaced-seed replication** (`scripts/run_spaced_sweeps.py`): both the counterfactual and
