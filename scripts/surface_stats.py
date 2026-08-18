@@ -129,6 +129,10 @@ def i1_check_frontier(surface_csv: Path, spaced_csv: Path, fields: list,
                          key=lambda r: int(r["iteration"]))
             want = sorted(ref.get((world, seed), []), key=lambda r: int(r["iteration"]))
             label = f"I-1 frontier {world}@{default_strength[world]} seed={seed}"
+            if not want:
+                # fail-closed: absent-from-both-sides must not zip to a silent pass
+                problems.append(f"{label}: reference cell absent (gate cannot verify)")
+                continue
             if len(got) != len(want):
                 problems.append(f"{label}: {len(got)} rows != spaced {len(want)}")
                 continue

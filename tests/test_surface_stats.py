@@ -85,3 +85,27 @@ def test_completeness_fails_closed(monkeypatch):
     rows = _fr_rows(0.0, "flat", [0.4, 0.4, 0.4])      # only 1 of 12 cells present
     missing = ss.missing_frontier_cells(rows)
     assert missing                                     # every other cell reported
+
+
+def test_i1_frontier_fails_closed_on_absent_cell(tmp_path):
+    """A cell absent from BOTH sides must be a problem, not a silent pass.
+
+    len(got) == len(want) == 0 previously zipped over nothing and credited the
+    cell as matching (docs/learnings/2026-08-18-fail-closed-gate-with-one-leg-
+    that-isnt.md); the cf leg always failed closed. This pins both legs.
+    """
+    ref = tmp_path / "ref.csv"
+    got = tmp_path / "got.csv"
+    ref.write_text("seed,generator,iteration,x\n1000,flat,0,0.123456\n")
+    got.write_text("unobserved_strength,seed,generator,iteration,x\n"
+                   "0.7,1000,flat,0,0.123456\n")
+    problems = ss.i1_check_frontier(got, ref, fields=["seed", "generator", "iteration", "x"],
+                                    default_strength={"flat": 0.7, "scm": 0.55},
+                                    seeds=[999999], worlds=("flat",))
+    assert problems, "absent-from-both-sides cell must fail closed"
+    cf_ref = tmp_path / "cf_ref.csv"
+    cf_got = tmp_path / "cf_got.csv"
+    cf_ref.write_text("severity,seed,x\n0.4,1000,0.1\n")
+    cf_got.write_text("unobserved_strength,severity,seed,x\n0.55,0.4,1000,0.1\n")
+    cf_problems = ss.i1_check_cf(cf_got, cf_ref, fields=["x"], seeds=[999999])
+    assert cf_problems, "cf leg must stay fail-closed on absent cells"
