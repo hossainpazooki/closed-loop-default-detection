@@ -41,6 +41,20 @@ v4 Option A — the `unobserved_strength` × severity surface (spec
   (latent — never reachable in a live run; `docs/learnings/2026-08-18-fail-closed-gate-
   with-one-leg-that-isnt.md`). One-line guard + a regression test pinning both legs;
   suite 230.
+- **Gate hardening (post-v4):** per-claim artifact-mutation self-test — every
+  artifact-backed doc-number claim is proven data-sensitive on every CI run, not just
+  planted-mismatch-proven once for one claim (count-of-runs claims get the matching
+  row-drop check instead, since they quote no measured value). The counterfactual and
+  spaced claims now **refuse their qualitative verbs** ("the effect survives",
+  "collapses to a negligible", "does **not** replicate") unless re-derivation still
+  supports them, extending the `surface-verdicts` pattern backwards to the older text.
+  `docs/validation.md`'s living figures are registered (gate is now **13 claims**,
+  scope no longer README-only) — which immediately caught a stale "149 tests" that had
+  drifted to 246. Content-hash pins for every tracked artifact
+  (`artifacts/SHA256SUMS.json` + `scripts/pin_artifacts.py`, sha256 over LF-normalized
+  bytes so the digest is platform-independent): an artifact edited without a matching
+  manifest entry now fails CI, closing the gap where a coordinated artifact+doc edit
+  passed the doc-number gate silently. Suite 246.
 
 Post-publication robustness (assessment Part III, items III.2-1 and III.3):
 
