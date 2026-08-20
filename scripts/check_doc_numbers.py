@@ -12,7 +12,7 @@ appears in the doc. Both failure modes fail the gate:
 * the doc was rewritten so the registered literal is gone (the claim registry
   itself has drifted -- unevaluable, and unevaluable is a FAILURE, not a pass).
 
-Scope: README.md only, deliberately. ``docs/assessment.md``, the handoff briefs
+Scope: README.md plus registered figures in docs/validation.md (living docs). ``docs/assessment.md``, the handoff briefs
 and specs are **dated provenance snapshots** ("dated docs stay dated") -- their
 figures are frozen records of their own review moments and must never be
 "fixed", so gating them against artifacts would be wrong the first time an
@@ -134,6 +134,15 @@ def _by_severity(rows: list[dict], value_col: str) -> dict[float, dict]:
 
 SEVERITY_GRID = (0.0, 0.2, 0.4, 0.6)
 
+# Doc-verb operationalizations: the README's qualitative language is
+# conditional on these re-derivations. A claim REFUSES its literals (raises,
+# gate goes red) when the recomputed data no longer supports the verb --
+# same pattern as claim_surface_verdicts' floor re-derivation.
+ALPHA = 0.05                # "significant" / "replicates" / "the effect survives"
+MAJORITY = 13               # "positive on k/25 seeds" language needs a majority of 25
+NEGLIGIBLE_FRACTION = 0.5   # "negligible at full severity": |mean gap at sev 1.0|
+                            # must be under this fraction of the sev-0.4 mean gap
+
 
 # --------------------------------------------------------------------------- #
 # Claims. Each returns a list of literals that must appear in the doc.
@@ -198,13 +207,21 @@ def claim_counterfactual_headline() -> list[str]:
     sp_pos = sum(1 for g in s04 if g > 0)
     sp_p = float(stats.wilcoxon(s04, alternative="greater").pvalue)
 
+    g10_mean = float(np.mean(g10))
+    assert gap_mean > 0 and n_pos >= MAJORITY and p < ALPHA, (
+        "README 'cuts ... MAE' verb no longer supported (direction/majority/significance)")
+    assert sp_pos >= MAJORITY and sp_p < ALPHA, (
+        "README independent-replication phrasing no longer significant on the spaced set")
+    assert abs(g10_mean) < NEGLIGIBLE_FRACTION * gap_mean, (
+        "README 'collapses to a negligible' no longer holds at full severity")
+
     return [
         "strong-propagation counterfactual MAE from %.3f to %.3f (%s%.1f%%, "
         "positive on %d/%d seeds, Wilcoxon p = %s; on an independent spaced "
         "seed set: %d/%d, p = %s)"
         % (naive_mean, gcomp_mean, MINUS, pct, n_pos, len(g04), sci_short(p),
            sp_pos, len(s04), sci_short(sp_p)),
-        "collapses to a negligible %s at full severity" % signed(float(np.mean(g10)), 4),
+        "collapses to a negligible %s at full severity" % signed(g10_mean, 4),
     ]
 
 
@@ -328,6 +345,12 @@ def claim_spaced_replication() -> list[str]:
     assert len(s04) == 25 and len(s10) == 25, "expected 25 spaced seeds per severity"
     p04 = float(stats.wilcoxon(s04, alternative="greater").pvalue)
 
+    s04_mean = float(np.mean(s04))
+    assert s04_mean > 0 and sum(1 for g in s04 if g > 0) >= MAJORITY and p04 < ALPHA, (
+        "README 'the effect survives' verb no longer supported by the spaced design")
+    assert abs(float(np.mean(s10))) < NEGLIGIBLE_FRACTION * s04_mean, (
+        "README 'negligible in magnitude' at full severity no longer holds")
+
     literals = [
         "%s ± %.4f, positive on %d/25 seeds, Wilcoxon p = %s"
         % (signed(float(np.mean(s04)), 4), float(np.std(s04, ddof=1)),
@@ -355,6 +378,20 @@ def claim_spaced_replication() -> list[str]:
         "(%d/25 at 0.4, %d/25 at 0.2)"
         % (parts["flat"] + parts["scm"])
     )
+
+    # Collapse by seed first -- the same basis claim_frontier_distribution uses.
+    # (The sweep CSV carries one row per loop ITERATION; a median over raw rows
+    # is a different statistic and reads 0.4 where the per-seed median is 0.2.)
+    orig_by_seed = {}
+    for r in _rows("frontier_sweep.csv"):
+        if r["generator"] == "scm":
+            orig_by_seed[int(r["seed"])] = r["frontier_severity"]
+    orig_vals = sorted(
+        float(v) for v in orig_by_seed.values() if v not in ("", "None")
+    )
+    assert len(orig_vals) == 25, "expected 25 original SCM seeds"
+    assert parts["scm"][0] != orig_vals[len(orig_vals) // 2], (
+        "README 'does **not** replicate' verb: spaced and original SCM medians now agree")
     return literals
 
 
@@ -391,6 +428,61 @@ def claim_test_count() -> list[str]:
         assert per_file, f"could not parse pytest collection output:\n{out[-500:]}"
         n = sum(int(c) for c in per_file)
     return ["`pytest` — %d tests, all synthetic" % n]
+
+
+def claim_surface_run_counts() -> list[str]:
+    """docs/validation.md v4 gates section <- surface CSV run-group counts."""
+    frontier_runs = len({
+        (r["generator"], r["unobserved_strength"], r["seed"])
+        for r in _rows("surface_frontier.csv")
+    })
+    cf_runs = len({
+        (r["unobserved_strength"], r["severity"], r["seed"])
+        for r in _rows("surface_counterfactual.csv")
+    })
+    return ["(%d loop runs + %d counterfactual evals)" % (frontier_runs, cf_runs)]
+
+
+def claim_pinned_environment() -> list[str]:
+    """docs/validation.md pins <- requirements-dev.txt (Rev-1.1 incident class:
+    prose pins drifting from the requirements file). Registered once; the doc
+    quotes it twice -- containment checking cannot count occurrences."""
+    text = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8")
+
+    def pin_of(pkg: str) -> str:
+        m = re.search(r"^%s==([\w.]+)$" % re.escape(pkg), text, re.MULTILINE)
+        assert m, f"{pkg} not exact-pinned in requirements-dev.txt"
+        return m.group(1)
+
+    return ["**scikit-learn %s / numpy %s**" % (pin_of("scikit-learn"), pin_of("numpy"))]
+
+
+def claim_suite_counts() -> list[str]:
+    """docs/validation.md troubleshooting + pinned-marker sentence <- live
+    collection (same recompute idiom as claim_test_count; two extra pytest
+    collections per gate run, ~seconds, accepted)."""
+    import subprocess
+
+    def collect(*args) -> int:
+        out = subprocess.run(
+            [sys.executable, "-m", "pytest", "--collect-only", "-q", *args],
+            capture_output=True, text=True, cwd=ROOT,
+        ).stdout
+        node_ids = [ln for ln in out.splitlines() if "::" in ln]
+        if node_ids:
+            return len(node_ids)
+        per_file = re.findall(r"^tests[/\\].*: (\d+)$", out, re.MULTILINE)
+        assert per_file, f"could not parse pytest collection output:\n{out[-500:]}"
+        return sum(int(c) for c in per_file)
+
+    total = collect()
+    pinned = collect("-m", "pinned")
+    words = {6: "six"}  # spelled out per doc style; extend if the set grows
+    return [
+        "the full suite passes (%d tests)" % total,
+        "The **%s** float-sensitive tests are marked `pinned`"
+        % words.get(pinned, str(pinned)),
+    ]
 
 
 def claim_surface_verdicts() -> list[str]:
@@ -477,6 +569,9 @@ CLAIMS = [
     ("surface-verdicts", "README.md", claim_surface_verdicts),
     ("package-version", "README.md", claim_package_version),
     ("test-count", "README.md", claim_test_count),
+    ("surface-run-counts", "docs/validation.md", claim_surface_run_counts),
+    ("pinned-environment", "docs/validation.md", claim_pinned_environment),
+    ("suite-counts", "docs/validation.md", claim_suite_counts),
 ]
 
 
