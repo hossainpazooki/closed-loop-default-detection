@@ -14,6 +14,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 
 _spec = importlib.util.spec_from_file_location(
@@ -65,6 +67,7 @@ def test_gate_fails_closed_on_missing_artifact(monkeypatch, tmp_path):
     reads_artifacts_dir = {
         "frontier-table-seed42", "counterfactual-headline",
         "frontier-distribution", "emp-disagreement", "exploration-price",
+        "spaced-replication", "surface-verdicts", "surface-run-counts",
     }
     artifact_backed = [r for r in results if r["id"] in reads_artifacts_dir]
     assert artifact_backed and all(not r["ok"] for r in artifact_backed)
@@ -95,3 +98,155 @@ def test_formatting_matches_doc_conventions():
     assert cdn.sci_padded(2.3253e-06) == "2.3e-06"
     assert cdn.signed(-0.00276, 4) == "−0.0028"
     assert cdn.signed(0.00174, 4) == "+0.0017"
+
+
+# --------------------------------------------------------------------------- #
+# Per-claim artifact-mutation self-test: every artifact-backed claim must be a
+# function of the data it reads. Perturb the values -> the claim must raise
+# (internal asserts fire) or emit different literals. Identical literals under
+# perturbed data = data-blind claim = FAIL.
+# --------------------------------------------------------------------------- #
+
+_ARTIFACT_BACKED = [
+    "frontier-table-seed42",
+    "counterfactual-headline",
+    "frontier-distribution",
+    "emp-disagreement",
+    "exploration-price",
+    "spaced-replication",
+    "surface-verdicts",
+]
+# Exempt from _rows mutation, with reasons:
+#   feedback-hypotheses: reads via scripts/feedback_sweep_stats.py -- covered by
+#                        test_feedback_claim_fires_on_artifact_value_drift below.
+#   package-version:     reads pyproject/CITATION directly; internally
+#                        cross-checked (CITATION != pyproject already fails it).
+#   test-count:          live pytest collection; non-vacuity demonstrated in the
+#                        field (228->229 catch, 2026-08-17).
+#   surface-run-counts:  counts distinct RUN KEYS, quoting no measured value, so
+#                        it is value-insensitive by construction (_perturbed_rows
+#                        preserves key columns on purpose). Its matching
+#                        non-vacuity check is row-DROP, not value drift --
+#                        test_surface_run_counts_fires_on_dropped_run below.
+
+# Columns that identify a row rather than carry a measured value. Preserved so
+# the mutation exercises VALUE sensitivity, not just lookup structure.
+_KEY_COLS = {
+    "seed", "generator", "iteration", "severity", "selection_severity",
+    "unobserved_strength", "exploration_rate",
+}
+
+
+def _perturbed_rows(orig):
+    def wrapper(name):
+        doctored = []
+        for r in orig(name):
+            d = dict(r)
+            for k, v in d.items():
+                if k in _KEY_COLS:
+                    continue
+                try:
+                    f = float(v)
+                except (TypeError, ValueError):
+                    continue
+                d[k] = repr(f * 1.5 + 0.25)
+            doctored.append(d)
+        return doctored
+    return wrapper
+
+
+def _claim_fn(claim_id):
+    return {cid: fn for cid, _doc, fn in cdn.CLAIMS}[claim_id]
+
+
+def _fires_under_mutation(fn, monkeypatch) -> bool:
+    """True iff the claim raises or changes its literals under perturbed rows."""
+    baseline = fn()
+    monkeypatch.setattr(cdn, "_rows", _perturbed_rows(cdn._rows))
+    try:
+        mutated = fn()
+    except Exception:
+        return True
+    return mutated != baseline
+
+
+@pytest.mark.parametrize("claim_id", _ARTIFACT_BACKED)
+def test_claim_fires_on_artifact_value_drift(claim_id, monkeypatch):
+    assert _fires_under_mutation(_claim_fn(claim_id), monkeypatch), (
+        f"{claim_id}: literals identical under perturbed artifact values -- "
+        "the claim is blind to the data it reads"
+    )
+
+
+def test_feedback_claim_fires_on_artifact_value_drift(monkeypatch):
+    fss = cdn._feedback_stats_module()
+    orig_load = fss.load_full_csv
+
+    def doctored():
+        df = orig_load().copy()
+        num = [c for c in df.select_dtypes("number").columns if c not in _KEY_COLS]
+        df[num] = df[num] * 1.5 + 0.25
+        return df
+
+    fn = _claim_fn("feedback-hypotheses")
+    baseline = fn()
+    monkeypatch.setattr(fss, "load_full_csv", doctored)
+    try:
+        mutated = fn()
+    except Exception:
+        return  # verdict/identity asserts fired: data-sensitive
+    assert mutated != baseline, "feedback-hypotheses is blind to its CSV values"
+
+
+def test_surface_run_counts_fires_on_dropped_run(monkeypatch):
+    """Non-vacuity for a count-of-runs claim: drop one run key -> the quoted
+    count must change (the matrix-completeness property it exists to protect)."""
+    orig = cdn._rows
+    fn = _claim_fn("surface-run-counts")
+    baseline = fn()
+
+    def one_run_short(name):
+        rows = orig(name)
+        if name != "surface_frontier.csv":
+            return rows
+        drop = (rows[0]["generator"], rows[0]["unobserved_strength"], rows[0]["seed"])
+        return [
+            r for r in rows
+            if (r["generator"], r["unobserved_strength"], r["seed"]) != drop
+        ]
+
+    monkeypatch.setattr(cdn, "_rows", one_run_short)
+    assert fn() != baseline, "claim did not notice a missing surface run"
+
+
+def test_mutation_harness_detects_a_data_blind_claim(monkeypatch):
+    """Vacuity check on the harness itself: a constant claim must NOT fire."""
+    assert not _fires_under_mutation(lambda: ["static literal"], monkeypatch)
+
+
+# --------------------------------------------------------------------------- #
+# Verb-conditional claims: the README's qualitative language ("survives",
+# "collapses to a negligible", "does not replicate") must be refused by the
+# claim when the recomputed data no longer supports the verb.
+# --------------------------------------------------------------------------- #
+
+def _sign_flipped_rows(orig, col="strong_gap"):
+    def wrapper(name):
+        rows = [dict(r) for r in orig(name)]
+        for r in rows:
+            if r.get(col) not in ("", None):
+                r[col] = repr(-float(r[col]))
+        return rows
+    return wrapper
+
+
+def test_spaced_replication_refuses_survives_verb_when_effect_flips(monkeypatch):
+    monkeypatch.setattr(cdn, "_rows", _sign_flipped_rows(cdn._rows))
+    with pytest.raises(AssertionError, match="survives"):
+        cdn.claim_spaced_replication()
+
+
+def test_counterfactual_headline_refuses_verbs_when_effect_flips(monkeypatch):
+    monkeypatch.setattr(cdn, "_rows", _sign_flipped_rows(cdn._rows))
+    with pytest.raises(AssertionError):
+        cdn.claim_counterfactual_headline()
