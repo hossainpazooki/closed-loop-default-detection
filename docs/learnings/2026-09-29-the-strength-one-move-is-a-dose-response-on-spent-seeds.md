@@ -1,0 +1,9 @@
+# the strength-1.0 move is a dose response on spent seeds
+
+ts: 2026-09-29T18:22:26Z
+commit: 36752b0
+session: cldd-v4-world-testing (Claude Code, 2026-09-29; transcript b9c37d75-090e-4b18-af1f-7d20606f9548)
+status: verified
+fact: v4's confirmatory family compared strength 0 to the DEFAULT strengths and confirmed nothing. The contrast it never tested, strength 0 against strength 1.0, is large on the same 25 seeds: the frontier receded on 20 of 25 in the flat world and 14 of 25 in the SCM, and advanced on none. Strength 0 to default moved 7 and 5. So the README's "moves only at strength 1.0" is the top of a dose response, not an isolated cell. It is still an observation: it was read off the surface after the data was in, and these seeds are spent. In the SCM, 14 of 25 puts the median paired difference exactly on the one-grid-step floor, so a fresh-seed run can miss there even if the effect is real. That is recorded here before any fresh seed is run.
+basis: recompute from the committed artifacts/surface_frontier.csv at 36752b0: "flat: F(0.0) - F(1.0) median=+0.2 receded=20 advanced=0 tied=5", "scm: F(0.0) - F(1.0) median=+0.2 receded=14 advanced=0 tied=11", "flat: F(0.0) - F(0.7) median=+0.0 receded=7 advanced=0 tied=18", "scm: F(0.0) - F(0.55) median=+0.0 receded=5 advanced=2 tied=18". Re-captured at 5f01105, artifact unchanged: "flat receded 20 advanced 0 of 25", "scm receded 14 advanced 0 of 25".
+re-verify: .venv/Scripts/python.exe -c "import csv; F={(r['generator'],float(r['unobserved_strength']),int(r['seed'])):float(r['frontier_severity']) for r in csv.DictReader(open('artifacts/surface_frontier.csv',newline=''))}; S=sorted({k[2] for k in F}); [print(w,'receded',sum(F[(w,0.0,s)]>F[(w,1.0,s)] for s in S),'advanced',sum(F[(w,0.0,s)]<F[(w,1.0,s)] for s in S),'of',len(S)) for w in ('flat','scm')]"

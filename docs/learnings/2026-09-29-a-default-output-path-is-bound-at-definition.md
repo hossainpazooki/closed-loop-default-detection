@@ -1,0 +1,9 @@
+# a default output path is bound at definition
+
+ts: 2026-09-29T18:35:37Z
+commit: 36752b0
+session: cldd-v4-world-testing (Claude Code, 2026-09-29; transcript b9c37d75-090e-4b18-af1f-7d20606f9548)
+status: verified
+fact: A writer declared `def write_env_manifest(out: Path = ENV_MANIFEST)` captures the path when the module loads, so a test that monkeypatches `module.ENV_MANIFEST` and calls `main()` still writes to the real, committed, hash-pinned file. `scripts/run_spaced_sweeps.py --out-suffix NAME` had been rewriting `artifacts/surface_env.json` on every suffixed run for this reason, while its help text said the originals were never touched. The regression test written to catch the defect triggered it on its first, failing run. The content came out byte-identical only because the build matched the recorded one. The same pattern was then found in two new stats scripts written the same day, caught by a success-path test of `main()`. Any function that writes takes its target as a required argument, and `main()` passes the module constant at call time. Test the success path of `main()` with every path redirected, and check the real path's mtime did not move.
+basis: at 36752b0 plus the uncommitted test file, `pytest tests/test_spaced_manifest.py` printed "environment manifest -> ...artifacts\surface_env.json" and "2 failed, 1 passed in 1.15s"; `ls -la --time-style=full-iso artifacts/surface_env.json` then showed mtime "2026-09-29 14:35:37.473607300 -0400" with `git diff --stat -- artifacts/surface_env.json` empty and `tests/test_artifact_integrity.py` at 4 passed. Fix landed in 5f01105. Re-captured at 5f01105: the signature reads "(out: 'Path') -> 'dict'", no default.
+re-verify: .venv/Scripts/python.exe -c "import inspect,importlib.util as u; s=u.spec_from_file_location('r','scripts/run_spaced_sweeps.py'); m=u.module_from_spec(s); s.loader.exec_module(m); print(inspect.signature(m.write_env_manifest))"
