@@ -45,6 +45,7 @@ import pandas as pd
 from scipy import stats
 
 from . import config
+from .selection import SegmentedSelection, apply_segmented, segment_index, validate_policy
 
 # --------------------------------------------------------------------------- #
 # Feature columns (superset of synthetic.FEATURE_COLUMNS; covers all 16
@@ -280,6 +281,7 @@ class StructuralBorrowerGenerator:
         unobserved_strength: float = 0.55,
         seed: int = config.RANDOM_SEED,
         independent_selection_noise: bool = False,
+        selection_policy: SegmentedSelection | None = None,
     ) -> None:
         # independent_selection_noise: by default the (1 - severity) blend noise in
         # ``_apply_selection`` reuses the exogenous draw behind the OBSERVED
@@ -301,6 +303,17 @@ class StructuralBorrowerGenerator:
         self.unobserved_strength = unobserved_strength
         self.seed = seed
         self.independent_selection_noise = independent_selection_noise
+        # Option C: None (the default) is the single global cutoff, byte-identical
+        # to the pre-knob path. A policy consumes no randomness.
+        if selection_policy is not None:
+            validate_policy(
+                selection_policy,
+                approval_rate=approval_rate,
+                allowed_features=FEATURE_COLUMNS,
+                gated_features=list(BANK_FEED_COLUMNS)
+                + ["requested_amount_to_observed_revenue"],
+            )
+        self.selection_policy = selection_policy
         self.rng = np.random.Generator(np.random.PCG64(seed))
 
     # ------------------------------------------------------------------ #
@@ -375,10 +388,18 @@ class StructuralBorrowerGenerator:
         true_default = (default_u < true_pd).astype(int)
 
         approved, prior_score = self._apply_selection(state, true_pd)
+        policy = self.selection_policy
+        segment = None
+        if policy is not None:
+            segment = segment_index(
+                np.asarray(state.values[policy.feature], dtype=float),
+                policy.n_segments, policy.knockout_end,
+            )
+            approved = apply_segmented(prior_score, segment, policy.rates)
         days_to_default = self._draw_survival(state, true_default)
         observation_status = np.where(approved, "matured", None).astype(object)
 
-        return {
+        cohort = {
             "features": df,
             "true_default": true_default,
             "approved": approved,
@@ -397,6 +418,12 @@ class StructuralBorrowerGenerator:
                 "n_applicants": self.n_applicants,
             },
         }
+        if policy is not None:
+            # Keys are added ONLY under a policy, so the default cohort dict is
+            # unchanged key-for-key.
+            cohort["segment"] = segment
+            cohort["ground_truth"]["selection_policy"] = policy.as_dict()
+        return cohort
 
     def true_pd(self, state: SCMState | None = None) -> np.ndarray:
         """Baseline per-applicant TRUE default probability from the SCM.

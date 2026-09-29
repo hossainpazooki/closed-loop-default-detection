@@ -57,6 +57,7 @@ from .scm import (
     dag_children,
     dag_parents,
 )
+from .selection import SegmentedSelection, knockout_rates
 from .synthetic import SyntheticBorrowerGenerator
 
 __all__ = [
@@ -105,4 +106,6 @@ __all__ = [
     "GComputationEstimator",
     "run_counterfactual_eval",
     "generate_queries",
+    "SegmentedSelection",
+    "knockout_rates",
 ]

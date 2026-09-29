@@ -55,6 +55,10 @@ Synthetic worlds
    :members:
    :undoc-members:
 
+.. automodule:: cldd.selection
+   :members:
+   :undoc-members:
+
 Diagnostics and fidelity
 ------------------------
 

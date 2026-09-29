@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 
 from . import config
+from .selection import SegmentedSelection, apply_segmented, segment_index, validate_policy
 
 #: Observed feature columns exposed to the PD model. A realistic subset of the
 #: challenge's 44-column schema — enough to be credible, not exhaustive. Bank-feed
@@ -82,6 +83,7 @@ class SyntheticBorrowerGenerator:
         bank_feed_rate: float = 0.64,
         unobserved_strength: float = 0.7,
         seed: int = config.RANDOM_SEED,
+        selection_policy: SegmentedSelection | None = None,
     ) -> None:
         if not 0.0 <= selection_severity <= 1.0:
             raise ValueError(f"selection_severity must be in [0, 1]; got {selection_severity}")
@@ -94,6 +96,16 @@ class SyntheticBorrowerGenerator:
         self.bank_feed_rate = bank_feed_rate
         self.unobserved_strength = unobserved_strength
         self.seed = seed
+        # Option C: None (the default) is the single global cutoff, byte-identical
+        # to the pre-knob path. A policy consumes no randomness.
+        if selection_policy is not None:
+            validate_policy(
+                selection_policy,
+                approval_rate=approval_rate,
+                allowed_features=FEATURE_COLUMNS,
+                gated_features=BANK_FEED_COLUMNS,
+            )
+        self.selection_policy = selection_policy
         self.rng = np.random.Generator(np.random.PCG64(seed))
 
     # ------------------------------------------------------------------ #
@@ -133,7 +145,7 @@ class SyntheticBorrowerGenerator:
         true_default = (self.rng.random(self.n_applicants) < _sigmoid(latent_risk)).astype(int)
         approved, prior_score = self._apply_selection(latent_risk)
 
-        return {
+        cohort = {
             "features": features,
             "true_default": true_default,
             "approved": approved,
@@ -146,6 +158,19 @@ class SyntheticBorrowerGenerator:
                 "n_applicants": self.n_applicants,
             },
         }
+        policy = self.selection_policy
+        if policy is not None:
+            # Keys are added ONLY under a policy, so the default cohort dict is
+            # unchanged key-for-key.
+            segment = segment_index(
+                features[policy.feature].to_numpy(), policy.n_segments, policy.knockout_end
+            )
+            approved = apply_segmented(prior_score, segment, policy.rates)
+            cohort["approved"] = approved
+            cohort["segment"] = segment
+            cohort["ground_truth"]["approval_rate"] = float(approved.mean())
+            cohort["ground_truth"]["selection_policy"] = policy.as_dict()
+        return cohort
 
     # ------------------------------------------------------------------ #
     # Internals
