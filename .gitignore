@@ -25,6 +25,10 @@ artifacts/*
 !artifacts/seed_sweep_spaced_v4env.csv
 !artifacts/surface_env.json
 !artifacts/SHA256SUMS.json
+!artifacts/strength_replication_frontier.csv
+!artifacts/strength_replication_stats.csv
+!artifacts/segment_frontier.csv
+!artifacts/segment_stats.csv
 
 # Python
 __pycache__/
