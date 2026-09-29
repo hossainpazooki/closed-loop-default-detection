@@ -25,13 +25,19 @@ append (skips pairs already present in the output CSV).
 
 ``--out-suffix NAME`` (added 2026-08-04, v4 spec Amendment Rev 1.1) re-runs the
 identical configurations into ``*_NAME.csv`` instead, plus an environment
-manifest ``artifacts/surface_env.json``. It exists because the v4 surface's I-1
-byte-identity embed gate compares against these artifacts, and the 2026-07-29
+manifest ``artifacts/surface_env_NAME.json``. It exists because the v4 surface's
+I-1 byte-identity embed gate compares against these artifacts, and the 2026-07-29
 originals were produced under an interpreter build that no longer exists on this
 machine (same pins, different compiled wheels -> last-ulp drift). The re-run
 deliberately reuses THIS driver's child code so a re-implementation cannot
 paper over a real plumbing bug. Default (empty suffix) behavior is unchanged,
 and the 2026-07-29 originals are never touched or superseded.
+
+The committed ``artifacts/surface_env.json`` is the manifest of the 2026-08-04
+``v4env`` re-baseline and is never rewritten. (Until 2026-09-29 every suffixed
+run wrote its manifest to that one path, overwriting the committed record; a
+suffixed run now writes its own file. To see how a build differs from the
+recorded one, diff the two manifests.)
 
 Usage:
     python scripts/run_spaced_sweeps.py                       # both sweeps
@@ -135,11 +141,14 @@ def _suffixed(path: Path, suffix: str) -> Path:
     return path if not suffix else path.with_name(f"{path.stem}_{suffix}{path.suffix}")
 
 
-def write_env_manifest(out: Path = ENV_MANIFEST) -> dict:
+def write_env_manifest(out: Path) -> dict:
     """Record the build environment a baseline was produced in.
 
     The absence of exactly this file is what made the 2026-07-29 baseline
     unreproducible: the pins were recorded, the interpreter build was not.
+
+    ``out`` has no default on purpose: the committed ``ENV_MANIFEST`` is a
+    hash-pinned record, and a default target is how it used to be overwritten.
     """
     import numpy
     import sklearn
@@ -204,16 +213,16 @@ def main() -> None:
     ap.add_argument(
         "--out-suffix", default="",
         help=(
-            "write to artifacts/*_SUFFIX.csv + an environment manifest instead of "
-            "the 2026-07-29 originals (v4 spec Amendment Rev 1.1); the originals "
-            "are never touched"
+            "write to artifacts/*_SUFFIX.csv + artifacts/surface_env_SUFFIX.json "
+            "instead of the 2026-07-29 originals (v4 spec Amendment Rev 1.1); no "
+            "committed artifact is touched"
         ),
     )
     args = ap.parse_args()
     cf_out = _suffixed(CF_OUT, args.out_suffix)
     fr_out = _suffixed(FR_OUT, args.out_suffix)
     if args.out_suffix:
-        write_env_manifest()
+        write_env_manifest(_suffixed(ENV_MANIFEST, args.out_suffix))
     if args.part in ("counterfactual", "both"):
         run_counterfactual(cf_out)
     if args.part in ("frontier", "both"):

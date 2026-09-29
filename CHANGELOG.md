@@ -55,6 +55,12 @@ v4 Option A — the `unobserved_strength` × severity surface (spec
   bytes so the digest is platform-independent): an artifact edited without a matching
   manifest entry now fails CI, closing the gap where a coordinated artifact+doc edit
   passed the doc-number gate silently. Suite 246.
+- **Fixed: a suffixed spaced run no longer overwrites the committed environment
+  manifest.** `scripts/run_spaced_sweeps.py --out-suffix NAME` wrote its manifest to
+  `artifacts/surface_env.json` whatever the suffix, rewriting the hash-pinned record of
+  the 2026-08-04 re-baseline while its help text said the originals were never touched.
+  It now writes `artifacts/surface_env_NAME.json`, and `write_env_manifest` has no
+  default target. Regression tests pin both; suite 249.
 
 Post-publication robustness (assessment Part III, items III.2-1 and III.3):
 
