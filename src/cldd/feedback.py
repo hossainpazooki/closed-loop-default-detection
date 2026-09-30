@@ -23,7 +23,7 @@ correction (IPW, retrain) is undefined on the declined side.
   labeled-propensity weights — the identification-buying lever from the static
   loop, now acting as a *stabilizer* of the feedback dynamics.
 
-v3 (docs/superpowers/specs/2026-07-14-cldd-v3-design.md) adds two additive flags,
+v3 (spec 2026-07-14-cldd-v3-design.md) adds two additive flags,
 byte-exact at their defaults, that isolate the trajectory's causes into three
 arms: ``retrain=False`` freezes the generation-0 model forever (isolates
 feedback accumulation — the "frozen" arm), and ``policy_mode="prior"`` funds

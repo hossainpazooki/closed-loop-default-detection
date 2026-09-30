@@ -1,7 +1,7 @@
 """v3 FeedbackLoop flags: ``retrain`` (frozen arm), ``policy_mode`` (prior arm),
 and the default-path byte-identity regression (spec section 7 bullets 2-3).
 
-Spec: docs/superpowers/specs/2026-07-14-cldd-v3-design.md (Rev 2), section 1.2.
+Spec: 2026-07-14-cldd-v3-design.md (Rev 2), section 1.2.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Expected-maximum-profit (EMP) reporting layer — the v2 measurement axis.
 
 Prices the frontier the loop already measures; **never** a loop-control input
-(spec: ``docs/superpowers/specs/2026-07-13-cldd-v2-emp-design.md``). Two
+(spec: ``2026-07-13-cldd-v2-emp-design.md``). Two
 variants, side by side:
 
 * :func:`empc_literature` — the Verbraken/Bravo/Weber/Baesens EMPC closed form

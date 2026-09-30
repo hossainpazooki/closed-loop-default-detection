@@ -5,7 +5,7 @@
     python scripts/run_feedback_sweep.py                  # full matrix, --workers 4 default
     python scripts/run_feedback_sweep.py --workers 8
 
-Matrix (spec docs/superpowers/specs/2026-07-14-cldd-v3-design.md section 4, decision
+Matrix (spec 2026-07-14-cldd-v3-design.md section 4, decision
 records 7-8): seeds {1000 + 16*i : i = 0..24} x severity {0.2, 0.4, 1.0} x
 exploration_rate {0, 0.05} x arm {treatment, frozen, prior}, n_generations=12,
 generator="scm" -> 450 runs, 5400 generation rows. Arms map to FeedbackLoop flags:
