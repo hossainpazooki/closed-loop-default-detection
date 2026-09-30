@@ -17,6 +17,8 @@
   "artifacts/seed_sweep_spaced.csv": "ffdc07e5296325acc698a04fc743084f1c842a6c2f29b87b1142f03a9bed16a5",
   "artifacts/seed_sweep_spaced_v4env.csv": "b382bde74d21429e93d3978dc5cf1a2064169bfdc36ef0d25db021ebfcdebe45",
   "artifacts/severity_curve.csv": "28f86ad0c7541a235ad2774d8e9dcc89a482e42c7ef25d09fbb8391b213f6e16",
+  "artifacts/strength_replication_frontier.csv": "5ce05aa672415e6094420196dfdf93fddc7b9d942d07bec1c235342644feabbe",
+  "artifacts/strength_replication_stats.csv": "aacfc8f08e5bd2ae3723a618fa0e4f9734c62a70fdca0cd29b10205f607bf166",
   "artifacts/surface_counterfactual.csv": "0c943a46f3b441d49b1d7d66d2fddf42a6812bccc513397fb2f8ad4b4eda90b9",
   "artifacts/surface_env.json": "102ce81df8b8dd1986f05f9e4fc9e8d5c122701e4a4c68c7adf01951411369b4",
   "artifacts/surface_frontier.csv": "beef5147a621bde93edbc17534585954ff81b8444111290a907b45cb395e9f2d",

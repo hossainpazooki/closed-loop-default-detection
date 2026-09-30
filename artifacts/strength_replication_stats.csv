@@ -1,0 +1,31 @@
+metric,hypothesis,world,strength,severity,role,direction,n_seeds,median_stat,mean_stat,floor,clears_floor,sign_k,sign_n,sign_p_raw,sign_p_holm,wilcoxon_stat,wilcoxon_p_raw,wilcoxon_p_holm,confirmed,n_never_passed,detail_json
+hypothesis,H-R1f,flat,1.0,0.4,confirmatory,positive,25,0.0515,0.0492,0.0311,True,25.0,25.0,2.9802322387695312e-08,5.960464477539063e-08,325.0,2.9802322387695312e-08,5.960464477539063e-08,True,0.0,"{""baseline_median"": 0.06886811524985764, ""binding"": ""target_distance"", ""n_missing_pairs"": 0, ""noise_scale"": 0.007894534892359483, ""target"": 0.1, ""target_distance"": 0.031131884750142363}"
+hypothesis,H-R1s,scm,1.0,0.4,confirmatory,positive,25,0.0201,0.0173,0.013,True,20.0,25.0,0.0020386576652526855,0.0020386576652526855,285.0,0.0002447366714477539,0.0002447366714477539,True,0.0,"{""baseline_median"": 0.08698500764529422, ""binding"": ""target_distance"", ""n_missing_pairs"": 0, ""noise_scale"": 0.00725875660303699, ""target"": 0.1, ""target_distance"": 0.013014992354705782}"
+hypothesis,H-R2f,flat,1.0,,secondary,positive,25,0.2,0.16,0.2,True,19.0,19.0,1.9073486328125e-06,3.814697265625e-06,190.0,1.00393280621324e-05,2.00786561242648e-05,True,0.0,
+hypothesis,H-R2s,scm,1.0,,secondary,positive,25,0.2,0.088,0.2,True,13.0,15.0,0.003692626953125,0.003692626953125,104.0,0.0022543491824521178,0.0022543491824521178,True,0.0,
+dose_ece,,flat,0.2,0.4,descriptive,n/a,25,0.0042,0.0036,,,15.0,25.0,,,,,,,,
+dose_ece,,flat,0.4,0.4,descriptive,n/a,25,0.0131,0.0107,,,19.0,25.0,,,,,,,,
+dose_ece,,flat,0.55,0.4,descriptive,n/a,25,0.0273,0.025,,,22.0,25.0,,,,,,,,
+dose_ece,,flat,0.7,0.4,descriptive,n/a,25,0.0265,0.0308,,,24.0,25.0,,,,,,,,
+dose_ece,,flat,1.0,0.4,descriptive,n/a,25,0.0515,0.0492,,,25.0,25.0,,,,,,,,
+dose_ece,,scm,0.2,0.4,descriptive,n/a,25,-0.0049,-0.0053,,,10.0,25.0,,,,,,,,
+dose_ece,,scm,0.4,0.4,descriptive,n/a,25,-0.0006,0.0016,,,12.0,25.0,,,,,,,,
+dose_ece,,scm,0.55,0.4,descriptive,n/a,25,0.004,0.0052,,,17.0,25.0,,,,,,,,
+dose_ece,,scm,0.7,0.4,descriptive,n/a,25,0.0119,0.0096,,,17.0,25.0,,,,,,,,
+dose_ece,,scm,1.0,0.4,descriptive,n/a,25,0.0201,0.0173,,,20.0,25.0,,,,,,,,
+cell_frontier,,flat,0.0,,descriptive,n/a,25,0.4,0.4,,,,,,,,,,,0.0,"{""0.2"": 1, ""0.4"": 23, ""0.6"": 1}"
+cell_frontier,,flat,0.2,,descriptive,n/a,25,0.4,0.408,,,,,,,,,,,0.0,"{""0.4"": 24, ""0.6"": 1}"
+cell_frontier,,flat,0.4,,descriptive,n/a,25,0.4,0.392,,,,,,,,,,,0.0,"{""0.2"": 1, ""0.4"": 24}"
+cell_frontier,,flat,0.55,,descriptive,n/a,25,0.4,0.336,,,,,,,,,,,0.0,"{""0.2"": 8, ""0.4"": 17}"
+cell_frontier,,flat,0.7,,descriptive,n/a,25,0.4,0.32,,,,,,,,,,,0.0,"{""0.2"": 10, ""0.4"": 15}"
+cell_frontier,,flat,1.0,,descriptive,n/a,25,0.2,0.24,,,,,,,,,,,0.0,"{""0.2"": 20, ""0.4"": 5}"
+cell_frontier,,scm,0.0,,descriptive,n/a,25,0.4,0.336,,,,,,,,,,,0.0,"{""0.2"": 8, ""0.4"": 17}"
+cell_frontier,,scm,0.2,,descriptive,n/a,25,0.4,0.368,,,,,,,,,,,0.0,"{""0.2"": 4, ""0.4"": 21}"
+cell_frontier,,scm,0.4,,descriptive,n/a,25,0.4,0.344,,,,,,,,,,,0.0,"{""0.2"": 7, ""0.4"": 18}"
+cell_frontier,,scm,0.55,,descriptive,n/a,25,0.4,0.328,,,,,,,,,,,0.0,"{""0.2"": 9, ""0.4"": 16}"
+cell_frontier,,scm,0.7,,descriptive,n/a,25,0.2,0.272,,,,,,,,,,,0.0,"{""0.2"": 16, ""0.4"": 9}"
+cell_frontier,,scm,1.0,,descriptive,n/a,25,0.2,0.248,,,,,,,,,,,0.0,"{""0.2"": 19, ""0.4"": 6}"
+flag_at_failing_severity,,flat,0.0,,descriptive,n/a,25,,,,,24.0,25.0,,,,,,,,"{""clear_failed"": 1, ""clear_passed"": 68, ""flagged_failed"": 24, ""flagged_passed"": 7, ""overlap_explanation_withdrawn"": false, ""withdraw_at"": 13}"
+flag_at_failing_severity,,scm,0.0,,descriptive,n/a,25,,,,,17.0,25.0,,,,,,,,"{""clear_failed"": 8, ""clear_passed"": 67, ""flagged_failed"": 17, ""flagged_passed"": 0, ""overlap_explanation_withdrawn"": false, ""withdraw_at"": 13}"
+diag_within_severity,,flat,0.0,0.4,descriptive,n/a,25,,,,,,,,,,,,,,"{""median_failing"": {""ess_ratio"": 0.8824391099776612, ""propensity_auc"": 0.8258752604166667, ""unfunded_below_floor"": 0.004375}, ""median_passing"": {""ess_ratio"": 0.8971616467513255, ""propensity_auc"": 0.8227367838541668, ""unfunded_below_floor"": 0.004375}, ""n_failing"": 1, ""n_passing"": 24, ""spearman_vs_ece"": {""ess_ratio"": {""p"": 0.7065712517454968, ""rho"": -0.07923076923076922}, ""propensity_auc"": {""p"": 0.4186924778221306, ""rho"": 0.16923076923076924}, ""unfunded_below_floor"": {""p"": 0.5408799430208271, ""rho"": 0.12836053442942438}}}"
+diag_within_severity,,scm,0.0,0.4,descriptive,n/a,25,,,,,,,,,,,,,,"{""median_failing"": {""ess_ratio"": 0.9027971356159867, ""propensity_auc"": 0.8342024739583334, ""unfunded_below_floor"": 0.005}, ""median_passing"": {""ess_ratio"": 0.9062257512480373, ""propensity_auc"": 0.8336885416666666, ""unfunded_below_floor"": 0.0025}, ""n_failing"": 8, ""n_passing"": 17, ""spearman_vs_ece"": {""ess_ratio"": {""p"": 0.31186703418664535, ""rho"": -0.21076923076923076}, ""propensity_auc"": {""p"": 0.815223274483154, ""rho"": -0.04923076923076923}, ""unfunded_below_floor"": {""p"": 0.2260486131572648, ""rho"": 0.2510722815809706}}}"
