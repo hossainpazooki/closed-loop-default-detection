@@ -63,6 +63,7 @@ ARTIFACTS_READ = [
     "feedback_profit_sweep.csv",
     "surface_frontier.csv",
     "surface_counterfactual.csv",
+    "strength_replication_frontier.csv",
 ]
 
 MINUS = "−"   # the README's minus sign
@@ -558,6 +559,87 @@ def claim_surface_verdicts() -> list[str]:
     ]
 
 
+_RST = None  # lazily imported scripts/strength_replication_stats.py module
+
+
+def _replication_stats_module():
+    global _RST
+    if _RST is None:
+        spec = importlib.util.spec_from_file_location(
+            "strength_replication_stats",
+            Path(__file__).resolve().parent / "strength_replication_stats.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _RST = mod
+    return _RST
+
+
+def claim_replication_run_counts() -> list[str]:
+    """docs/validation.md replication gates <- run-group count."""
+    runs = len({
+        (r["generator"], r["unobserved_strength"], r["seed"])
+        for r in _rows("strength_replication_frontier.csv")
+    })
+    return ["(%d replication loop runs)" % runs]
+
+
+def claim_strength_replication() -> list[str]:
+    """README strength-1.0 replication <- strength_replication_frontier.csv.
+
+    Re-derives both families through scripts/strength_replication_stats.py (one
+    implementation, not a second copy of the statistics). Every verdict word is
+    CONDITIONAL on the re-derived result: "confirmed on its floor" is emitted
+    only while the median equals the floor, "confirmed" only while it clears it,
+    and the claim refuses outright on a spent seed or an incomplete matrix.
+    """
+    rst = _replication_stats_module()
+    rows_in = _rows("strength_replication_frontier.csv")
+    assert not rst.spent_seed_rows(rows_in), "a run consumed a spent seed"
+    missing = rst.missing_cells(rows_in)
+    assert not missing, f"replication matrix incomplete: {missing[:3]}"
+    rows = rst.build_rows(rows_in)
+
+    hyp = {r["hypothesis"]: r for r in rows if r["metric"] == "hypothesis"}
+    assert sorted(hyp) == ["H-R1f", "H-R1s", "H-R2f", "H-R2s"]
+
+    def verdict(r) -> str:
+        if not r["confirmed"]:
+            return "not confirmed"
+        return "confirmed on its floor" if abs(r["median_stat"] - r["floor"]) < 1e-12             else "confirmed"
+
+    n_primary = sum(1 for k in ("H-R1f", "H-R1s") if hyp[k]["confirmed"])
+    frontier = {(r["world"], r["strength"]): r["median_stat"]
+                for r in rows if r["metric"] == "cell_frontier"}
+
+    def first_move(world: str) -> float:
+        base = frontier[(world, 0.0)]
+        moved = [v for v in rst.STRENGTHS if frontier[(world, v)] < base]
+        assert moved, f"{world}: the median frontier never moves; README text is stale"
+        return min(moved)
+
+    flag = {r["world"]: r for r in rows if r["metric"] == "flag_at_failing_severity"}
+    f1, s1, f2, s2 = hyp["H-R1f"], hyp["H-R1s"], hyp["H-R2f"], hyp["H-R2s"]
+    return [
+        "replicated in **%d of 2** worlds on %d fresh seeds" % (n_primary, f1["n_seeds"]),
+        "rose by a median of %s in the flat world, on %d/%d seeds (%s)"
+        % (signed(f1["median_stat"], 4), f1["sign_k"], f1["n_seeds"], verdict(f1)),
+        "and by %s in the SCM, on %d/%d seeds (%s)"
+        % (signed(s1["median_stat"], 4), s1["sign_k"], s1["n_seeds"], verdict(s1)),
+        "The SCM clears its floor of %.4f by %.4f"
+        % (s1["floor"], s1["median_stat"] - s1["floor"]),
+        "The flat frontier receded on %d of %d seeds and advanced on %d (%s)"
+        % (f2["sign_k"], f2["n_seeds"], f2["sign_n"] - f2["sign_k"], verdict(f2)),
+        "the SCM frontier receded on %d of %d and advanced on %d, **%s**"
+        % (s2["sign_k"], s2["n_seeds"], s2["sign_n"] - s2["sign_k"], verdict(s2)),
+        "first moves at strength %.1f in the flat world and at strength %.1f in the SCM"
+        % (first_move("flat"), first_move("scm")),
+        "fired at the failing severity on %d of %d flat runs and %d of %d SCM runs"
+        % (flag["flat"]["sign_k"], flag["flat"]["sign_n"],
+           flag["scm"]["sign_k"], flag["scm"]["sign_n"]),
+    ]
+
+
 CLAIMS = [
     ("frontier-table-seed42", "README.md", claim_frontier_table_seed42),
     ("counterfactual-headline", "README.md", claim_counterfactual_headline),
@@ -567,9 +649,11 @@ CLAIMS = [
     ("feedback-hypotheses", "README.md", claim_feedback_hypotheses),
     ("spaced-replication", "README.md", claim_spaced_replication),
     ("surface-verdicts", "README.md", claim_surface_verdicts),
+    ("strength-replication", "README.md", claim_strength_replication),
     ("package-version", "README.md", claim_package_version),
     ("test-count", "README.md", claim_test_count),
     ("surface-run-counts", "docs/validation.md", claim_surface_run_counts),
+    ("replication-run-counts", "docs/validation.md", claim_replication_run_counts),
     ("pinned-environment", "docs/validation.md", claim_pinned_environment),
     ("suite-counts", "docs/validation.md", claim_suite_counts),
 ]

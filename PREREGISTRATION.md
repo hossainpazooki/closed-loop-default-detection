@@ -2,8 +2,9 @@
 
 A pre-registration here is a specification fixed before its experiment is run.
 The specification is held privately. This file publishes its SHA-256 digest in a
-dated commit, so that when the specification is released anyone can check it is
-the document that existed before the data.
+dated commit, so that if the specification is released anyone can check it is
+the document that existed before the data. Until then the digest proves a
+document existed at that date, and nothing about what it says.
 
 Digests are taken over LF-normalized bytes, the same convention as
 `artifacts/SHA256SUMS.json`.
@@ -24,6 +25,7 @@ python -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read(
 | Seeds | `{5000 + 16i, i = 0..24}`, none of which any committed artifact has consumed |
 | Runs | 300 loop runs: six confounder strengths, two worlds, 25 seeds |
 | State at registration | no fresh seed run; `artifacts/strength_replication_frontier.csv` does not exist |
+| Text | held outside this repository; not released |
 
 The hypotheses, floors and reading rules are in the specification. The analysis
 script is public and states them in its docstring; the specification adds the

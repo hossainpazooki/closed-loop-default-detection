@@ -93,6 +93,58 @@ registered in the [README's v4 section](https://github.com/hossainpazooki/closed
 and recomputes via `scripts/surface_stats.py`, which fail-closes on missing cells and
 enforces a byte-identity embed gate before reporting anything.
 
+## Replicating the strength-1.0 move
+
+The v4 surface showed the frontier moving only at full confounder strength, and that was
+read off the surface after the data was in. It was therefore re-run as its own experiment,
+on seeds no committed artifact had consumed, and pre-registered by digest (see
+`PREREGISTRATION.md`; the specification is held outside the repository). The driver is
+the v4 surface child
+with one inserted block, the four overlap-diagnostic columns the loop already computes.
+
+The primary outcome is continuous: the declined-pool calibration error of the loop's
+control lever at severity 0.4, contrasted between strength 0 and strength 1.0 on the same
+seed. Its floor is the larger of two quantities measured inside the experiment: the
+distance from the strength-0 median to the calibration target, and the noise in the same
+contrast at severity 0, where selection is random and strength cannot act through it. The
+frontier is a secondary family, because a grid-quantized outcome can only clear a one-step
+floor by sitting on it.
+
+Both worlds replicated on the primary outcome, and both frontier hypotheses were confirmed
+on their floor. The dose response, against strength 0 at severity 0.4:
+
+| Strength 0 → | 0.2 | 0.4 | 0.55 | 0.7 | 1.0 |
+|---|---|---|---|---|---|
+| Flat: median change | +0.0042 | +0.0131 | +0.0273 | +0.0265 | +0.0515 |
+| Flat: seeds rising, of 25 | 15 | 19 | 22 | 24 | 25 |
+| SCM: median change | −0.0049 | −0.0006 | +0.0040 | +0.0119 | +0.0201 |
+| SCM: seeds rising, of 25 | 10 | 12 | 17 | 17 | 20 |
+
+The frontier, per cell:
+
+| Strength | 0.0 | 0.2 | 0.4 | 0.55 | 0.7 | 1.0 |
+|---|---|---|---|---|---|---|
+| Flat: median frontier | 0.4 | 0.4 | 0.4 | 0.4 | 0.4 | 0.2 |
+| Flat: seeds at 0.2 or below, of 25 | 1 | 0 | 1 | 8 | 10 | 20 |
+| SCM: median frontier | 0.4 | 0.4 | 0.4 | 0.4 | 0.2 | 0.2 |
+| SCM: seeds at 0.2 or below, of 25 | 8 | 4 | 7 | 9 | 16 | 19 |
+
+Two descriptive reads of the overlap diagnostics at strength 0 came with it. Across
+severities the abstention flag fired at the failing severity on most runs, which means the
+pre-stated reading rule does not withdraw the overlap explanation. It does not confirm it
+either, because the flag and the failure both follow severity. Within severity 0.4 the
+diagnostics do not separate failing runs from passing ones:
+
+| World | Failing runs | Passing runs | Median propensity AUC, failing vs passing | Spearman of AUC against calibration error |
+|---|---|---|---|---|
+| Flat | 1 | 24 | 0.826 vs 0.823 | +0.17 (p = 0.42) |
+| SCM | 8 | 17 | 0.834 vs 0.834 | -0.05 (p = 0.82) |
+
+So the confounder does not build the wall, and at full strength it moves it. What builds
+the wall with the confounder off is untested by intervention. Every figure quoted in the
+README for this experiment is registered in the doc-number gate and recomputes via
+`scripts/strength_replication_stats.py`.
+
 ## Why it is useful
 
 - **Earlier, broader detection.** The loop scores and *calibrates* default risk on the

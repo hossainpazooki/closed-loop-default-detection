@@ -74,6 +74,23 @@ in). The four confirmatory verdicts behind the README's v4 section were addition
 recomputed by an independent skeptic pass before the docs were updated. Reproduce:
 `python scripts/run_surface_sweep.py` (resumable), then `python scripts/surface_stats.py`.
 
+## The strength-1.0 replication gates
+
+The replication of the strength-1.0 move (300 replication loop runs) was pre-registered by
+digest: `PREREGISTRATION.md` carries the SHA-256 of its specification, committed before
+the first fresh seed ran. It publishes nothing without passing, in order: the **pilot
+gate** (`run_strength_replication.py --pilot`, on an already-spent seed only, so it exposes
+no confirmatory outcome — byte-match on every shared column against the committed
+`surface_frontier.csv`, the four diagnostic columns present, and a per-run budget
+trip-wire); **completeness** (zero missing cells); the **spent-seed guard** (no run in the
+artifact may have consumed a seed a committed artifact consumed, checked on the consumed
+span, not the base seed); and **evaluability** (the primary floor is undefined, and the
+analysis exits non-zero, if the strength-0 baseline already sits at the calibration
+target). The verdicts were recomputed from the raw CSV by an independent skeptic pass,
+with its own code, before the docs were updated. Reproduce:
+`python scripts/run_strength_replication.py` (resumable), then
+`python scripts/strength_replication_stats.py`.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:
@@ -111,7 +128,7 @@ future model tier, not a current dependency.
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
   exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
   the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the full suite passes (329 tests).
+  numpy 2.4.6** the full suite passes (331 tests).
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
 - **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not

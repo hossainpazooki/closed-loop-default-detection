@@ -119,8 +119,8 @@ reading is withdrawn as measured, not softened:
   every strength up to 0.7 and moves to **0.2** only at strength 1.0, in both worlds. At the
   flat default a minority effect exists — 7/7 of the seeds that moved did so in the predicted
   direction (Holm-adjusted sign-test p = 0.031) — but it sits below the pre-registered
-  one-step floor. The strength-1.0 move was observed post-hoc and is a hypothesis for a
-  future pre-registration, not a confirmation.
+  one-step floor. The strength-1.0 move was observed post-hoc on these seeds. It has since
+  been tested on fresh seeds under its own pre-registration (next section).
 - **The counterfactual gap runs opposite the predicted direction:** the median
   strong-propagation gap at severity 0.4 goes +0.0152 → +0.0135 → +0.0090 as strength rises
   0.0 → 0.55 → 1.0.
@@ -129,6 +129,42 @@ What survives: every boundary measurement above — the frontier, its 0.2–0.4 
 counterfactual collapse. What is withdrawn: the sentence that one cause explains them.
 Recompute everything: `python scripts/surface_stats.py` (fail-closed on missing cells;
 enforces the byte-identity embed gate against the committed re-baseline).
+
+### The strength-1.0 move, replicated on fresh seeds
+
+*Verified experiment, not verified result.* The move at strength 1.0 was an observation, so
+it was re-run as a test: 300 loop runs over the same six strengths, on 25 seeds no committed
+artifact had consumed (`artifacts/strength_replication_frontier.csv`). It was **pre-registered
+by digest**: the specification's SHA-256 was committed in
+[`PREREGISTRATION.md`](PREREGISTRATION.md) before the first fresh seed ran. The
+specification itself is held outside this repository, so the digest fixes the document
+and its date and does not yet let a reader check its text. The hypotheses, floors and
+reading rules it registers are stated in full in the analysis script's docstring.
+
+The observation replicated in **2 of 2** worlds on 25 fresh seeds.
+
+- **Primary outcome, calibration error.** From strength 0 to strength 1.0 the declined-pool
+  calibration error at severity 0.4 rose by a median of +0.0515 in the flat world, on 25/25
+  seeds (confirmed), and by +0.0201 in the SCM, on 20/25 seeds (confirmed). The SCM clears its
+  floor of 0.0130 by 0.0070.
+- **Secondary outcome, the frontier.** The frontier moves in grid steps, so a confirmed
+  one-step move sits on its floor by construction; what differs is the margin. The flat
+  frontier receded on 19 of 25 seeds and advanced on 0 (confirmed on its floor); the SCM
+  frontier receded on 13 of 25 and advanced on 2, **confirmed on its floor** — 13 is exactly
+  what the median needs, and one fewer would fail.
+- **Where it starts.** On the fresh seeds the median frontier first moves at strength 1.0 in
+  the flat world and at strength 0.7 in the SCM. The v4 sentence above describes the v4
+  seeds; this one describes these.
+- **The overlap flag, descriptively.** At strength 0 the flag fired at the failing severity
+  on 24 of 25 flat runs and 17 of 25 SCM runs. The pre-stated reading rule does not withdraw
+  the overlap explanation, and it cannot confirm it: the flag and the failure both follow
+  severity, and within severity 0.4 the diagnostics do not separate failing runs from passing
+  ones.
+
+What this supports: the confounder does not build the wall, and at full strength it moves
+it. What builds the wall at strength 0 is still untested by intervention. Recompute
+everything: `python scripts/strength_replication_stats.py` (fail-closed on missing cells, on
+an unevaluable family, and on any run that consumed a spent seed).
 
 ## Pricing the frontier (v2)
 
@@ -308,7 +344,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 329 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 331 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing

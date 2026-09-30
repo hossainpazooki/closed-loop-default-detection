@@ -7,8 +7,37 @@ initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-defa
 
 ## [Unreleased]
 
+Strength-1.0 replication (pre-registered by digest in `PREREGISTRATION.md`; the
+specification is held outside the repository):
+
+- **The post-hoc strength-1.0 observation was re-run as a test and replicated in both
+  worlds**, on 25 seeds no committed artifact had consumed (300 loop runs,
+  `scripts/run_strength_replication.py`, `artifacts/strength_replication_frontier.csv`).
+  Primary family, calibration error at severity 0.4 from strength 0 to 1.0: flat
+  confirmed, SCM confirmed. Secondary family, the frontier: both confirmed on their floor,
+  the SCM with no margin. Verdicts recomputed from the raw CSV by an independent skeptic
+  before any doc was touched.
+- **Pre-registration by digest.** The specification's SHA-256 was committed before the
+  first fresh seed ran. Its text is not released.
+- **Design specifications moved out of the repository.** `docs/superpowers/specs/` is
+  removed from the tip. The v2, v3 and v4 specifications remain in the history; the v4
+  pre-registration is at
+  <https://github.com/hossainpazooki/closed-loop-default-detection/blob/43926ce/docs/superpowers/specs/2026-07-29-cldd-v4-option-a-surface-design.md>.
+  Dated ledger entries that cite the old paths are left as written.
+- **Fail-closed analysis** (`scripts/strength_replication_stats.py`): refuses on missing
+  cells, on an undefined floor, and on any run that consumed a spent seed, checked on the
+  consumed span. Two descriptive reads of the overlap diagnostics at strength 0, neither
+  of which can confirm the overlap explanation.
+- **Doc-number gate is now 15 claims**: `strength-replication` re-derives both families
+  and emits each verdict word only while the data supports it; `replication-run-counts`
+  has its row-drop non-vacuity test. Suite 331.
+- **Segmented selection** (`cldd.selection`, `selection_policy=` on both generators,
+  `scripts/run_segment_sweep.py`): built, byte-identical at the default, **not run**. Its
+  driver still targets the default confounder strength and will be revised to strength 0
+  before any run.
+
 v4 Option A — the `unobserved_strength` × severity surface (spec
-`docs/superpowers/specs/2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2):
+`2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2, in the history at `43926ce`):
 
 - **Two additive knobs**, byte-exact at their defaults (differential tests enforce it):
   `SelectiveLabelsLoop(generator_kwargs=...)` forwards world-construction overrides to the

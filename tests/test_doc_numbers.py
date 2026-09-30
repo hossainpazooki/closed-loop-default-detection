@@ -115,6 +115,7 @@ _ARTIFACT_BACKED = [
     "exploration-price",
     "spaced-replication",
     "surface-verdicts",
+    "strength-replication",
 ]
 # Exempt from _rows mutation, with reasons:
 #   feedback-hypotheses: reads via scripts/feedback_sweep_stats.py -- covered by
@@ -128,6 +129,9 @@ _ARTIFACT_BACKED = [
 #                        preserves key columns on purpose). Its matching
 #                        non-vacuity check is row-DROP, not value drift --
 #                        test_surface_run_counts_fires_on_dropped_run below.
+#   replication-run-counts: count of keys, value-insensitive by construction;
+#                        covered by the row-drop test
+#                        test_replication_run_counts_fires_on_dropped_run below.
 
 # Columns that identify a row rather than carry a measured value. Preserved so
 # the mutation exercises VALUE sensitivity, not just lookup structure.
@@ -217,6 +221,26 @@ def test_surface_run_counts_fires_on_dropped_run(monkeypatch):
 
     monkeypatch.setattr(cdn, "_rows", one_run_short)
     assert fn() != baseline, "claim did not notice a missing surface run"
+
+
+def test_replication_run_counts_fires_on_dropped_run(monkeypatch):
+    """Count-of-keys claim: value mutation cannot move it, a dropped run must."""
+    orig = cdn._rows
+    fn = _claim_fn("replication-run-counts")
+    baseline = fn()
+
+    def one_run_short(name):
+        rows = orig(name)
+        if name != "strength_replication_frontier.csv":
+            return rows
+        drop = (rows[0]["generator"], rows[0]["unobserved_strength"], rows[0]["seed"])
+        return [
+            r for r in rows
+            if (r["generator"], r["unobserved_strength"], r["seed"]) != drop
+        ]
+
+    monkeypatch.setattr(cdn, "_rows", one_run_short)
+    assert fn() != baseline, "claim did not notice a missing replication run"
 
 
 def test_mutation_harness_detects_a_data_blind_claim(monkeypatch):
