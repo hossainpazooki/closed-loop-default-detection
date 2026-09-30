@@ -1,0 +1,9 @@
+# the overlap flag fires at the wall and does not separate
+
+ts: 2026-09-30T00:35:54Z
+commit: 1c81d3e
+session: cldd-v4-world-testing (Claude Code, 2026-09-29; transcript b9c37d75-090e-4b18-af1f-7d20606f9548)
+status: verified
+fact: At strength 0 the overlap diagnostics flag most runs at the severity where they fail, so the registered reading rule does not withdraw the overlap explanation of the wall. The same data cannot confirm it. Within severity 0.4, where some runs pass and some fail, the three diagnostics have nearly the same medians in both groups and none is rank-correlated with the calibration error. The flag tracks severity, which every run shares, and not the outcome. The overlap explanation stays untested by intervention. A co-occurrence count across severities is not evidence for a cause when the flag and the failure both rise with the same dial.
+basis: rows of `artifacts/strength_replication_stats.csv` at strength 0. flag_at_failing_severity: flat "flagged_failed": 24 of 25 with "flagged_passed": 7; scm "flagged_failed": 17 of 25 with "clear_failed": 8; both "overlap_explanation_withdrawn": false at "withdraw_at": 13. diag_within_severity, scm, n_failing 8 and n_passing 17: median propensity_auc 0.8342 failing against 0.8337 passing, median ess_ratio 0.9028 against 0.9062, spearman_vs_ece p values 0.82, 0.31, 0.23. Flat has one failing run at that severity, so its split is not informative. The flag counts were also recomputed from the raw frontier file: "flat strength 0: flagged at the failing severity 24 of 25", "scm strength 0: flagged at the failing severity 17 of 25".
+re-verify: .venv/Scripts/python.exe -c "import csv; [print(r['metric'], r['world'], r['sign_k'], r['sign_n'], r['detail_json'][:200]) for r in csv.DictReader(open('artifacts/strength_replication_stats.csv', newline='')) if r['metric'] in ('flag_at_failing_severity','diag_within_severity')]"
