@@ -31,13 +31,24 @@ specification is held outside the repository):
 - **Doc-number gate is now 15 claims**: `strength-replication` re-derives both families
   and emits each verdict word only while the data supports it; `replication-run-counts`
   has its row-drop non-vacuity test. Suite 331.
-- **Segmented selection** (`cldd.selection`, `selection_policy=` on both generators,
-  `scripts/run_segment_sweep.py`): built, byte-identical at the default, **pre-registered
-  by digest in `PREREGISTRATION.md`, not run**. Every cell runs with the confounder
-  switched off (`unobserved_strength=0.0`); the legacy cell's byte-identity reference is
-  the strength-0 rows of `artifacts/surface_frontier.csv`, and the pilot gate passed
-  against them on seed 1000. The within-segment cutoff shares the global cutoff's
-  inclusive-quantile convention, recorded in `cldd.selection`. Suite 334.
+- **Segmented selection, run and published** (`cldd.selection`, `selection_policy=` on both
+  generators, `scripts/run_segment_sweep.py`, `scripts/segment_stats.py`): pre-registered by
+  digest in `PREREGISTRATION.md`; 400 loop runs on 2026-11-03 after the digest commit was
+  public, every cell with the confounder switched off (`unobserved_strength=0.0`); the legacy
+  cell reproduces the strength-0 rows of `artifacts/surface_frontier.csv` byte for byte
+  (I-C1). Result: calibration error at severity 0 rises in both worlds (confirmed), the
+  frontier recedes one step in both (confirmed on its floor), the placebo held; the
+  overlap-wall explanation is stated as measured. Artifacts `artifacts/segment_frontier.csv`
+  and `artifacts/segment_stats.csv`, pinned. Doc-number gate is now 17 claims
+  (`segment-verdicts`, `segment-run-counts`). The within-segment cutoff shares the global
+  cutoff's inclusive-quantile convention, recorded in `cldd.selection`.
+- **Fix: the floor comparison tolerates IEEE noise** (`scripts/segment_stats.py`,
+  `scripts/surface_stats.py`): a one-step frontier difference stored as 0.6 − 0.4 =
+  0.19999999999999996 failed a raw `>= 0.2`. Found after the segmented matrix ran, when the
+  flat H-C2f printed "not confirmed" while the SCM's exactly-stored 0.2 cleared; corrected
+  after the data were seen and disclosed in the README. Tolerance 10⁻⁹, three pinned
+  regression tests; the committed `surface_stats.csv` re-generates byte-identical, so no
+  published verdict moves. Suite 340.
 
 v4 Option A — the `unobserved_strength` × severity surface (spec
 `2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2, in the history at `43926ce`):

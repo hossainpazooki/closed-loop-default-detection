@@ -91,6 +91,22 @@ with its own code, before the docs were updated. Reproduce:
 `python scripts/run_strength_replication.py` (resumable), then
 `python scripts/strength_replication_stats.py`.
 
+## The segmented-selection gates
+
+The segmented-selection experiment (400 segmented loop runs) was pre-registered by digest in
+`PREREGISTRATION.md`, and the matrix started after that commit was public. It publishes
+nothing without passing, in order: the **pilot gate** (`run_segment_sweep.py --pilot`, on
+seed 1000 only: byte-match of the legacy cell against the strength-0 rows of the committed
+`surface_frontier.csv`, isolation of the knockout from features and planted defaults,
+non-vacuity of the funding mask, a per-run budget trip-wire, environment drift reported
+against `surface_env.json`); **completeness** (zero missing cells); and **I-C1** (every
+legacy row string-equal, on `unobserved_strength` and every frontier column, to the
+surface's strength-0 rows, in iteration order; absent reference cells fail closed). The
+verdicts were recomputed from the raw CSV by an independent skeptic pass before the docs
+were updated; that pass is what found the floor comparison's floating-point defect, which is
+corrected and disclosed in the README. Reproduce: `python scripts/run_segment_sweep.py`
+(resumable), then `python scripts/segment_stats.py`.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:
@@ -128,7 +144,7 @@ future model tier, not a current dependency.
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
   exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
   the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the full suite passes (334 tests).
+  numpy 2.4.6** the full suite passes (340 tests).
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
 - **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not

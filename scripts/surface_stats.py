@@ -200,6 +200,19 @@ def _paired(diff_a: dict, diff_b: dict) -> list:
     return [diff_a[s] - diff_b[s] for s in seeds]
 
 
+FLOOR_TOL = 1e-9             # IEEE noise on grid-step differences (0.6 - 0.4 < 0.2)
+
+
+def clears_floor(median: float, floor: float) -> bool:
+    """``median >= floor`` up to FLOOR_TOL. Frontier differences live on a 0.2
+    grid, and a one-step difference such as 0.6 - 0.4 is stored as
+    0.19999999999999996; a raw comparison against the 0.2 floor failed it
+    (found 2026-11-03 on the segmented-selection matrix, flat H-C2f). The
+    tolerance is 10^-9: far below any grid step or ECE floor, so it cannot
+    pass a genuinely sub-floor median."""
+    return bool(median + FLOOR_TOL >= floor)
+
+
 def _hypothesis_row(name: str, diffs: list, floor: float, world: str = "",
                     strength=float("nan")) -> dict:
     sign = _fss.sign_test(diffs, "positive")
@@ -211,7 +224,7 @@ def _hypothesis_row(name: str, diffs: list, floor: float, world: str = "",
         role="confirmatory", direction="positive",
         n_seeds=len(diffs), median_stat=median,
         mean_stat=float(np.mean(diffs)) if diffs else float("nan"),
-        floor=floor, clears_floor=bool(diffs and median >= floor),
+        floor=floor, clears_floor=clears_floor(median, floor) if diffs else False,
         sign_k=sign["k"], sign_n=sign["n"], sign_p_raw=sign["p"],
         wilcoxon_stat=wil["stat"], wilcoxon_p_raw=wil["p"],
         confirmed=None, n_never_passed=0, detail_json="",

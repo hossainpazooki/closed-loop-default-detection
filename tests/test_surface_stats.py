@@ -108,3 +108,14 @@ def test_i1_frontier_fails_closed_on_absent_cell(tmp_path):
     cf_got.write_text("unobserved_strength,severity,seed,x\n0.55,0.4,1000,0.1\n")
     cf_problems = ss.i1_check_cf(cf_got, cf_ref, fields=["x"], seeds=[999999])
     assert cf_problems, "cf leg must stay fail-closed on absent cells"
+
+
+def test_hs1_floor_is_grid_aware_on_a_0_6_minus_0_4_pair(monkeypatch):
+    """Same defect as segment_stats (pinned 2026-11-03): 0.6 - 0.4 is below 0.2
+    in IEEE arithmetic; a one-step move must still clear the one-step floor."""
+    monkeypatch.setattr(ss, "SEEDS", SEEDS3)
+    zero = ss.frontier_by_seed(_fr_rows(0.0, "flat", [0.6, 0.6, 0.6]), 0.0, "flat")
+    dflt = ss.frontier_by_seed(_fr_rows(0.7, "flat", [0.4, 0.4, 0.4]), 0.7, "flat")
+    row = ss.hs1_row("H-S1f", zero, dflt)
+    assert row["median_stat"] < 0.2 and abs(row["median_stat"] - 0.2) < 1e-12
+    assert row["clears_floor"] is True

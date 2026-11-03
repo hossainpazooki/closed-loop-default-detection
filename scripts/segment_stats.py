@@ -71,6 +71,19 @@ OUT_CSV = ROOT / "artifacts" / "segment_stats.csv"
 ALPHA = 0.05
 NEVER_PASSED = -0.2          # one grid step below the minimum passable severity
 GRID_STEP_FLOOR = 0.2        # H-C2 floor: one severity step
+
+
+FLOOR_TOL = 1e-9             # IEEE noise on grid-step differences (0.6 - 0.4 < 0.2)
+
+
+def clears_floor(median: float, floor: float) -> bool:
+    """``median >= floor`` up to FLOOR_TOL. Frontier differences live on a 0.2
+    grid, and a one-step difference such as 0.6 - 0.4 is stored as
+    0.19999999999999996; a raw comparison against the 0.2 floor failed it
+    (found 2026-11-03 on the segmented-selection matrix, flat H-C2f). The
+    tolerance is 10^-9: far below any grid step or ECE floor, so it cannot
+    pass a genuinely sub-floor median."""
+    return bool(median + FLOOR_TOL >= floor)
 PRIMARY_SEVERITY = 0.0       # E is read at round 0
 
 PRIMARY_FEATURE, PRIMARY_END = _rgs.ATTACK_FEATURES[0]
@@ -210,7 +223,7 @@ def _hypothesis_row(name: str, diffs: list, floor: float, world: str, policy: st
         severity=PRIMARY_SEVERITY, role=role, direction="positive",
         n_seeds=len(diffs), median_stat=median,
         mean_stat=float(np.mean(diffs)) if diffs else float("nan"),
-        floor=floor, clears_floor=bool(diffs and median >= floor),
+        floor=floor, clears_floor=clears_floor(median, floor) if diffs else False,
         sign_k=sign["k"], sign_n=sign["n"], sign_p_raw=sign["p"],
         wilcoxon_stat=wil["stat"], wilcoxon_p_raw=wil["p"],
         confirmed=None, n_never_passed=0, detail_json="",

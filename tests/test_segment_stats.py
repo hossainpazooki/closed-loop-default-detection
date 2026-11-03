@@ -227,3 +227,26 @@ def test_stats_csv_round_trips_the_diagnostics_json(monkeypatch, tmp_path):
     diag = frame[frame["metric"] == "cell_diagnostics"].iloc[0]
     assert set(json.loads(diag["detail_json"])) == {
         "flagged_passed", "flagged_failed", "clear_passed", "clear_failed"}
+
+
+def test_hc2_floor_is_grid_aware_on_a_0_6_minus_0_4_pair():
+    """Pinned 2026-11-03 from the live matrix: the flat H-C2f median was one
+    grid step stored as 0.6 - 0.4 = 0.19999999999999996, and a raw
+    ``median >= 0.2`` failed the registered one-step floor while the SCM's
+    exactly-stored 0.4 - 0.2 == 0.2 cleared it. The floor is a grid step, so
+    the comparison must tolerate IEEE subtraction noise."""
+    f_d0 = gs.frontier_by_seed(_rows("d0", "flat", [0.02] * 8, [0.6] * 8), "d0", "flat")
+    f_d1 = gs.frontier_by_seed(_rows("d1", "flat", [0.02] * 8, [0.4] * 8), "d1", "flat")
+    row = gs.hc2_row("H-C2f", "flat", "d1", f_d0, f_d1)
+    assert row["median_stat"] < 0.2                    # the artifact is real
+    assert abs(row["median_stat"] - 0.2) < 1e-12       # and it is one grid step
+    assert row["clears_floor"] is True
+
+
+def test_hc2_floor_still_blocks_a_genuine_sub_step_median():
+    f_d0 = gs.frontier_by_seed(_rows("d0", "flat", [0.02] * 8, [0.4] * 8), "d0", "flat")
+    f_d1 = gs.frontier_by_seed(_rows("d1", "flat", [0.02] * 8,
+                                     [0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2]), "d1", "flat")
+    row = gs.hc2_row("H-C2f", "flat", "d1", f_d0, f_d1)
+    assert row["median_stat"] == 0.0
+    assert row["clears_floor"] is False

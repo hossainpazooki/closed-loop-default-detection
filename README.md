@@ -162,9 +162,60 @@ The observation replicated in **2 of 2** worlds on 25 fresh seeds.
   ones.
 
 What this supports: the confounder does not build the wall, and at full strength it moves
-it. What builds the wall at strength 0 is still untested by intervention. Recompute
-everything: `python scripts/strength_replication_stats.py` (fail-closed on missing cells, on
-an unevaluable family, and on any run that consumed a spent seed).
+it. What builds the wall at strength 0 is tested by intervention in the next section.
+Recompute everything: `python scripts/strength_replication_stats.py` (fail-closed on missing
+cells, on an unevaluable family, and on any run that consumed a spent seed).
+
+### Losing overlap by hand: segmented selection at strength 0
+
+*Verified experiment.* The two sections above leave the wall at strength 0 unexplained: the
+confounder does not build it, and the leading candidate, an overlap wall, had only been seen
+through a flag that rises with severity. This experiment removes overlap directly. A
+segmented selection policy splits each cohort into five equal-mass segments by the rank of
+one observed feature and funds segment 0 at `1 − depth` of the common rate, sharing the
+freed volume among the other four, so the approval rate is unchanged, the features, planted
+defaults and scores are byte-identical, and only the funding mask moves. Nothing is hidden:
+every cell runs with the confounder switched off (`unobserved_strength = 0`). 400 loop runs
+(`artifacts/segment_frontier.csv`): the global cutoff; depths {0, 0.5, 1} on
+`aggregate_credit_utilization` (high end) and on `vintage_years` (low end), both worlds; and a
+placebo knockout on `requested_amount`, which carries no risk, flat world only. It was
+**pre-registered by digest** in [`PREREGISTRATION.md`](PREREGISTRATION.md); the matrix
+started after that commit was public. The seeds are the v4 surface's strength-0 seeds, on
+purpose: the legacy cell must reproduce the surface's rows byte for byte (gate I-C1).
+
+- **Primary outcome, calibration error at severity 0.** Knocking the top utilization segment
+  out entirely (depth 1 against depth 0), the control lever's declined-pool calibration error
+  rose by a median of +0.0213 in the flat world, on 24/25 seeds (confirmed), and by +0.0268 in
+  the SCM, on 24/25 seeds (confirmed), over re-cut floors of 0.0064 and 0.0085: the noise of
+  re-cutting inside segments with no rate change, measured in the same experiment.
+- **Secondary outcome, the frontier.** The flat frontier receded on 13 of 25 seeds and
+  advanced on 0 (confirmed on its floor); the SCM frontier receded on 15 of 25 and advanced on
+  0 (confirmed on its floor). As in the replication, a one-step move on a 0.2 grid sits on its
+  floor by construction, and 13 is exactly what the flat median needs. The cell medians do not
+  show it (both 0.4 in the flat world); the paired recession is carried by the seeds whose
+  depth-0 frontier was 0.6 and by the seeds that fell to 0.2 or 0.
+- **Placebo.** The same knockout on a feature with no risk coefficient came out at a median
+  of +0.0008 on 14/25 seeds and **held**.
+- **The falsification statement, applied.** Both frontier hypotheses are confirmed, so by the
+  registered rule the overlap-wall explanation is **stated as measured**: removing overlap in
+  an observable, with nothing hidden, reproduces the wall. Both confirmations sit on their
+  floors with no margin.
+
+**A correction made after the data were seen, disclosed.** The analysis script compared the
+raw median to the 0.2 floor with `>=`. The flat median was one grid step stored as
+0.6 − 0.4 = 0.19999999999999996, so the script first printed the flat frontier hypothesis as
+not confirmed, and the explanation as not supported, while the SCM's exactly-stored 0.2
+cleared. An independent recompute from the raw CSV found it. The comparison now tolerates
+10⁻⁹ (`scripts/segment_stats.py` and `scripts/surface_stats.py`, three pinned regression
+tests); the committed v4 statistics re-generate byte for byte under it, and the change can
+only turn a false "not confirmed" into a confirmation, never the reverse. The registered
+rule, one severity step, is unchanged.
+
+What this supports: at strength 0 the wall is an overlap wall. What it does not: that overlap
+is the whole story where the confounder is on, since at full strength the confounder moves
+the wall too. The diagnostic flag fired on every round of every depth-1 cell, passing or
+failing, so under a knockout it cannot discriminate (descriptive, by design). Recompute
+everything: `python scripts/segment_stats.py` (fail-closed on missing cells and on I-C1).
 
 ## Pricing the frontier (v2)
 
@@ -344,7 +395,7 @@ python scripts/paired_significance.py         # recompute the headline stat from
 
 ## Validation
 
-`pytest` — 334 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
+`pytest` — 340 tests, all synthetic, no real data needed. CI runs a pinned-repro job (exact
 pins), a cross-version/OS compat matrix, and a strict docs build. Six float-sensitive tests
 reproduce only under the pins in `requirements-dev.txt`; the optional marginal-fidelity gate
 compares the SCM against a **private** real dataset via `CLDD_DATA_DIR` and is the only thing

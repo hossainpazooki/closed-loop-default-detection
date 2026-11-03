@@ -45,6 +45,8 @@ before the hypotheses were worded.
 | Runs | 400 loop runs: 16 policy cells, two worlds, 25 seeds, one strength |
 | State at registration | pilot gate passed on seed 1000 (round counts and timings read, no metric values); `artifacts/segment_frontier.csv` does not exist |
 | Text | held outside this repository; not released |
+| Run | 2026-11-03: the registering commit `7b735da` reached `origin/master` at 13:54:55Z; `artifacts/segment_frontier.csv` was created at 13:58:37Z; 400 of 400 runs, I-C1 green |
+| Changed after the data were seen | the floor comparison in `scripts/segment_stats.py` (and `scripts/surface_stats.py`) tolerates 10⁻⁹ of IEEE noise on grid-step differences. The registered rule, one severity step, is unchanged; the change can only turn a "not confirmed" into a confirmation; disclosed in the README |
 
 Four confirmatory hypotheses (losing overlap in an observable costs calibration
 at severity 0, and moves the frontier; each in both worlds), one placebo

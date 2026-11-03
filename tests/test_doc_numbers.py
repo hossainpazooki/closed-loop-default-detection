@@ -116,6 +116,7 @@ _ARTIFACT_BACKED = [
     "spaced-replication",
     "surface-verdicts",
     "strength-replication",
+    "segment-verdicts",
 ]
 # Exempt from _rows mutation, with reasons:
 #   feedback-hypotheses: reads via scripts/feedback_sweep_stats.py -- covered by
@@ -132,6 +133,8 @@ _ARTIFACT_BACKED = [
 #   replication-run-counts: count of keys, value-insensitive by construction;
 #                        covered by the row-drop test
 #                        test_replication_run_counts_fires_on_dropped_run below.
+#   segment-run-counts:  count of keys, value-insensitive by construction;
+#                        covered by test_segment_run_counts_fires_on_dropped_run.
 
 # Columns that identify a row rather than carry a measured value. Preserved so
 # the mutation exercises VALUE sensitivity, not just lookup structure.
@@ -241,6 +244,55 @@ def test_replication_run_counts_fires_on_dropped_run(monkeypatch):
 
     monkeypatch.setattr(cdn, "_rows", one_run_short)
     assert fn() != baseline, "claim did not notice a missing replication run"
+
+
+def test_segment_run_counts_fires_on_dropped_run(monkeypatch):
+    """Count-of-keys claim: value mutation cannot move it, a dropped run must."""
+    orig = cdn._rows
+    fn = _claim_fn("segment-run-counts")
+    baseline = fn()
+
+    def one_run_short(name):
+        rows = orig(name)
+        if name != "segment_frontier.csv":
+            return rows
+        drop = (rows[0]["policy_id"], rows[0]["generator"], rows[0]["seed"])
+        return [r for r in rows
+                if (r["policy_id"], r["generator"], r["seed"]) != drop]
+
+    monkeypatch.setattr(cdn, "_rows", one_run_short)
+    assert fn() != baseline, "claim did not notice a missing segmented run"
+
+
+def test_segment_verdict_words_follow_the_re_derivation(monkeypatch):
+    """The literals carry verdict words; flipping the frontier of the depth-1
+    cell to match depth 0 must turn 'confirmed on its floor' into
+    'not confirmed' and 'stated as measured' into 'not supported'."""
+    orig = cdn._rows
+    fn = _claim_fn("segment-verdicts")
+    baseline = fn()
+    assert any("confirmed on its floor" in lit for lit in baseline)
+
+    def no_frontier_move(name):
+        rows = orig(name)
+        if name != "segment_frontier.csv":
+            return rows
+        by_key = {}
+        for r in rows:
+            by_key.setdefault((r["policy_id"], r["generator"], r["seed"]), []).append(r)
+        out = []
+        for (policy, world, seed), group in by_key.items():
+            if policy.endswith(":d1.0") and policy.startswith("aggregate_credit_utilization"):
+                ref = by_key[(policy.replace(":d1.0", ":d0.0"), world, seed)]
+                fr = ref[-1]["frontier_severity"]
+                group = [dict(r, frontier_severity=fr) for r in group]
+            out += group
+        return out
+
+    monkeypatch.setattr(cdn, "_rows", no_frontier_move)
+    mutated = fn()
+    assert any("not confirmed" in lit for lit in mutated)
+    assert any("**not supported**" in lit for lit in mutated)
 
 
 def test_mutation_harness_detects_a_data_blind_claim(monkeypatch):

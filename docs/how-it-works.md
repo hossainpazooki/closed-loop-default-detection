@@ -145,6 +145,63 @@ the wall with the confounder off is untested by intervention. Every figure quote
 README for this experiment is registered in the doc-number gate and recomputes via
 `scripts/strength_replication_stats.py`.
 
+
+## Removing overlap by hand
+
+The replication left the wall at strength 0 unexplained. The candidate was an overlap wall:
+at high severity the selection is near-deterministic in the score, so the declined pool has
+no funded counterparts. Severity cannot test that, because it moves two things at once, how
+much of the selection is hidden and how much overlap survives. A segmented selection policy
+(`cldd.selection.SegmentedSelection`, the `selection_policy` knob on both generators) moves
+only the second: the cohort is split into five equal-mass segments by the rank of one
+observed feature, segment 0 is funded at `1 − depth` of the common rate and the freed volume
+is shared among the other four. The approval rate is unchanged, the features, planted
+defaults and scores are byte-identical with or without a policy, and every cell runs with
+the confounder off. Pre-registered by digest (`PREREGISTRATION.md`), 400 loop runs.
+
+The primary outcome is the control lever's declined-pool calibration error at severity 0,
+where selection is random inside each segment and the policy's structure is the only
+selection effect; its floor is the re-cut noise, the median absolute change between the
+depth-0 cell and the global cutoff, measured inside the same experiment. The frontier is the
+secondary family with a one-step floor. Both families confirmed in both worlds, the frontier
+on its floor; the placebo on a feature with no risk coefficient held; the overlap-wall
+explanation is stated as measured.
+
+The frontier, per cell (median, with the range across the 25 seeds):
+
+| Cell | Flat | SCM |
+|---|---|---|
+| Global cutoff | 0.4 (0.4–0.4) | 0.4 (0.2–0.4) |
+| Utilization, depth 0 | 0.4 (0.4–0.6) | 0.4 (0.2–0.4) |
+| Utilization, depth 0.5 | 0.4 (0.2–0.6) | 0.4 (0.2–0.4) |
+| Utilization, depth 1 | 0.4 (0.0–0.6) | 0.2 (0.2–0.4) |
+| Vintage, depth 0 | 0.4 (0.4–0.4) | 0.4 (0.2–0.4) |
+| Vintage, depth 0.5 | 0.4 (0.4–0.6) | 0.4 (0.2–0.4) |
+| Vintage, depth 1 | 0.4 (0.4–0.8) | 0.4 (0.2–0.4) |
+| Requested amount (placebo), depth 0 | 0.4 (0.4–0.6) | — |
+| Requested amount (placebo), depth 1 | 0.6 (0.4–0.8) | — |
+
+The declined-pool calibration error of the control lever at severity 0, median per cell:
+
+| Cell | Flat | SCM |
+|---|---|---|
+| Global cutoff | 0.0280 | 0.0254 |
+| Utilization, depth 0 / 0.5 / 1 | 0.0271 / 0.0274 / 0.0485 | 0.0269 / 0.0284 / 0.0497 |
+| Vintage, depth 0 / 0.5 / 1 | 0.0220 / 0.0261 / 0.0337 | 0.0268 / 0.0314 / 0.0347 |
+| Requested amount (placebo), depth 0 / 1 | 0.0278 / 0.0270 | — |
+
+Two things in these tables are descriptive and carry no verdict. The vintage knockout, the
+second attack feature, moves the error in the same direction with a smaller dose response.
+The placebo knockout advances the flat frontier to 0.6 while leaving the error alone, which
+is what a feature with no risk coefficient should do to a calibration outcome and says
+nothing registered about the frontier. The abstention flag fired on every walked round of
+every depth-1 cell, passing or failing, so once overlap is removed by hand the flag no longer
+discriminates; the registered reading of the flag is a table, not a verdict.
+
+The analysis script's floor comparison was corrected after the data were seen: a one-step
+frontier difference stored as 0.6 − 0.4 is below 0.2 in IEEE arithmetic and failed a raw
+`>=`. The README section on this experiment carries the disclosure.
+
 ## Why it is useful
 
 - **Earlier, broader detection.** The loop scores and *calibrates* default risk on the

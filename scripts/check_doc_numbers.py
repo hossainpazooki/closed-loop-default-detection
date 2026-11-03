@@ -64,6 +64,7 @@ ARTIFACTS_READ = [
     "surface_frontier.csv",
     "surface_counterfactual.csv",
     "strength_replication_frontier.csv",
+    "segment_frontier.csv",
 ]
 
 MINUS = "−"   # the README's minus sign
@@ -640,6 +641,75 @@ def claim_strength_replication() -> list[str]:
     ]
 
 
+_SGS = None  # lazily imported scripts/segment_stats.py module
+
+
+def _segment_stats_module():
+    global _SGS
+    if _SGS is None:
+        spec = importlib.util.spec_from_file_location(
+            "segment_stats", Path(__file__).resolve().parent / "segment_stats.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _SGS = mod
+    return _SGS
+
+
+def claim_segment_run_counts() -> list[str]:
+    """docs/validation.md segmented-selection gates <- run-group count."""
+    runs = len({
+        (r["policy_id"], r["generator"], r["seed"])
+        for r in _rows("segment_frontier.csv")
+    })
+    return ["(%d segmented loop runs)" % runs]
+
+
+def claim_segment_verdicts() -> list[str]:
+    """README segmented selection <- segment_frontier.csv.
+
+    Re-derives the Holm family, the placebo and the falsification statement
+    through scripts/segment_stats.py (one implementation). Every verdict word is
+    CONDITIONAL on the re-derived result: "confirmed on its floor" only while
+    the median equals the floor, "stated as measured" only while BOTH frontier
+    hypotheses are confirmed, "held" only while the placebo did not move. The
+    claim refuses on an incomplete matrix or on any run not at strength 0.
+    """
+    sgs = _segment_stats_module()
+    rows_in = _rows("segment_frontier.csv")
+    assert not sgs.missing_cells(rows_in), "segmented matrix incomplete"
+    assert all(float(r["unobserved_strength"]) == 0.0 for r in rows_in), \
+        "a segmented run did not run at strength 0"
+    rows = sgs.build_rows(rows_in)
+    hyp = {r["hypothesis"]: r for r in rows if r["metric"] == "hypothesis"}
+    assert sorted(hyp) == ["H-C1f", "H-C1s", "H-C2f", "H-C2s", "placebo"]
+
+    def verdict(r) -> str:
+        if not r["confirmed"]:
+            return "not confirmed"
+        return ("confirmed on its floor" if abs(r["median_stat"] - r["floor"]) < 1e-9
+                else "confirmed")
+
+    f1, s1, f2, s2, pl = (hyp[k] for k in ("H-C1f", "H-C1s", "H-C2f", "H-C2s", "placebo"))
+    wall = bool(f2["confirmed"] and s2["confirmed"])
+    return [
+        "rose by a median of %s in the flat world, on %d/%d seeds (%s)"
+        % (signed(f1["median_stat"], 4), int(f1["sign_k"]), int(f1["n_seeds"]), verdict(f1)),
+        "and by %s in the SCM, on %d/%d seeds (%s)"
+        % (signed(s1["median_stat"], 4), int(s1["sign_k"]), int(s1["n_seeds"]), verdict(s1)),
+        "over re-cut floors of %.4f and %.4f" % (f1["floor"], s1["floor"]),
+        "The flat frontier receded on %d of %d seeds and advanced on %d (%s)"
+        % (int(f2["sign_k"]), int(f2["n_seeds"]), int(f2["sign_n"] - f2["sign_k"]), verdict(f2)),
+        "the SCM frontier receded on %d of %d and advanced on %d (%s)"
+        % (int(s2["sign_k"]), int(s2["n_seeds"]), int(s2["sign_n"] - s2["sign_k"]), verdict(s2)),
+        "came out at a median of %s on %d/%d seeds and **%s**"
+        % (signed(pl["median_stat"], 4), int(pl["sign_k"]), int(pl["n_seeds"]),
+           "moved" if pl["confirmed"] else "held"),
+        "the overlap-wall explanation is **%s**"
+        % ("stated as measured" if wall else "not supported"),
+    ]
+
+
 CLAIMS = [
     ("frontier-table-seed42", "README.md", claim_frontier_table_seed42),
     ("counterfactual-headline", "README.md", claim_counterfactual_headline),
@@ -650,10 +720,12 @@ CLAIMS = [
     ("spaced-replication", "README.md", claim_spaced_replication),
     ("surface-verdicts", "README.md", claim_surface_verdicts),
     ("strength-replication", "README.md", claim_strength_replication),
+    ("segment-verdicts", "README.md", claim_segment_verdicts),
     ("package-version", "README.md", claim_package_version),
     ("test-count", "README.md", claim_test_count),
     ("surface-run-counts", "docs/validation.md", claim_surface_run_counts),
     ("replication-run-counts", "docs/validation.md", claim_replication_run_counts),
+    ("segment-run-counts", "docs/validation.md", claim_segment_run_counts),
     ("pinned-environment", "docs/validation.md", claim_pinned_environment),
     ("suite-counts", "docs/validation.md", claim_suite_counts),
 ]
