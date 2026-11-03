@@ -67,9 +67,8 @@ v4 Option A — the `unobserved_strength` × severity surface (spec
   row in `validation.md`; knob rows in `configuration.md`.
 - **I-1 frontier leg now fails closed on absent cells**: a cell missing from *both* sides
   of the byte-identity comparison previously zipped over nothing and passed silently
-  (latent — never reachable in a live run; `docs/learnings/2026-08-18-fail-closed-gate-
-  with-one-leg-that-isnt.md`). One-line guard + a regression test pinning both legs;
-  suite 230.
+  (latent — never reachable in a live run). One-line guard + a regression test pinning
+  both legs; suite 230.
 - **Gate hardening (post-v4):** per-claim artifact-mutation self-test — every
   artifact-backed doc-number claim is proven data-sensitive on every CI run, not just
   planted-mismatch-proven once for one claim (count-of-runs claims get the matching

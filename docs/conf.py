@@ -54,10 +54,7 @@ master_doc = "index"
 # dated accompanying article (a provenance snapshot); both live in docs/ for
 # convenience but are excluded from the Sphinx build so they do not trip the
 # strict `-W` toc.not_included gate.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md",
-                    "superpowers",   # superpowers/ = design specs, not site pages
-                    "handoff",       # handoff/ = session briefs, not site pages
-                    "learnings"]     # learnings/ = findings ledger, not site pages
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "RECON_FINDINGS.md", "assessment.md"]
 
 html_theme = "furo"
 html_title = "closed-loop-default-detection"

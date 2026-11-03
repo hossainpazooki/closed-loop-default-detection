@@ -91,8 +91,7 @@ def test_i1_frontier_fails_closed_on_absent_cell(tmp_path):
     """A cell absent from BOTH sides must be a problem, not a silent pass.
 
     len(got) == len(want) == 0 previously zipped over nothing and credited the
-    cell as matching (docs/learnings/2026-08-18-fail-closed-gate-with-one-leg-
-    that-isnt.md); the cf leg always failed closed. This pins both legs.
+    cell as matching; the cf leg always failed closed. This pins both legs.
     """
     ref = tmp_path / "ref.csv"
     got = tmp_path / "got.csv"

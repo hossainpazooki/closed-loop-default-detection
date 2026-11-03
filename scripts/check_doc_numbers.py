@@ -12,8 +12,8 @@ appears in the doc. Both failure modes fail the gate:
 * the doc was rewritten so the registered literal is gone (the claim registry
   itself has drifted -- unevaluable, and unevaluable is a FAILURE, not a pass).
 
-Scope: README.md plus registered figures in docs/validation.md (living docs). ``docs/assessment.md``, the handoff briefs
-and specs are **dated provenance snapshots** ("dated docs stay dated") -- their
+Scope: README.md plus registered figures in docs/validation.md (living docs). ``docs/assessment.md``
+is a **dated provenance snapshot** ("dated docs stay dated") -- their
 figures are frozen records of their own review moments and must never be
 "fixed", so gating them against artifacts would be wrong the first time an
 artifact is legitimately superseded. CHANGELOG entries are dated release notes,
