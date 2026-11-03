@@ -2,7 +2,9 @@
 
 Recomputes every to-be-published number from artifacts/segment_frontier.csv
 (never from memory), enforces the I-C1 byte-identity embed gate against the
-v4env spaced baseline, and writes artifacts/segment_stats.csv. Exits non-zero
+strength-0 rows of the v4 surface (artifacts/surface_frontier.csv), and writes
+artifacts/segment_stats.csv. Every cell ran with the confounder switched off
+(unobserved_strength = 0.0, ruling F8). Exits non-zero
 -- publication mechanically blocked -- if any confirmatory computation is
 unevaluable (missing cells: fail-closed) or the integrity control fails.
 
@@ -61,8 +63,9 @@ SEEDS = list(_rgs.SEEDS)
 WORLDS = tuple(_rgs.WORLDS)
 LEGACY = _rgs.LEGACY
 SEG_CSV = _rgs.SEG_OUT
-SPACED_FR = _rgs.SPACED_FR
-FR_FIELDS = list(_rgs.FR_FIELDS)
+SURFACE_FR = _rgs.SURFACE_FR
+STRENGTH = _rgs.STRENGTH
+MATCH_FIELDS = list(_rgs.MATCH_FIELDS)
 OUT_CSV = ROOT / "artifacts" / "segment_stats.csv"
 
 ALPHA = 0.05
@@ -114,13 +117,18 @@ def _group(rows: list, key_fn) -> dict:
 # I-C1 byte-identity embed gate
 # --------------------------------------------------------------------------- #
 
-def ic1_check(segment_csv: Path, spaced_csv: Path, fields: list, seeds: list,
-              worlds) -> list:
-    """Legacy-cell rows must be string-equal per shared column with the spaced
-    artifact, per (world, seed), in iteration order."""
+def ic1_check(segment_csv: Path, reference_csv: Path, fields: list, seeds: list,
+              worlds, strength=None) -> list:
+    """Legacy-cell rows must be string-equal per shared column with the
+    reference artifact, per (world, seed), in iteration order. With ``strength``
+    set, only reference rows at that unobserved_strength count (the v4 surface
+    carries six strengths; the legacy cell ran at one)."""
     seg = _group([r for r in _read_rows(segment_csv) if r["policy_id"] == LEGACY],
                  lambda r: (r["generator"], int(r["seed"])))
-    ref = _group(_read_rows(spaced_csv), lambda r: (r["generator"], int(r["seed"])))
+    ref_rows = _read_rows(reference_csv)
+    if strength is not None:
+        ref_rows = [r for r in ref_rows if float(r["unobserved_strength"]) == strength]
+    ref = _group(ref_rows, lambda r: (r["generator"], int(r["seed"])))
     problems: list = []
     for world in worlds:
         for seed in seeds:
@@ -359,14 +367,15 @@ def main() -> int:
         print("  missing (%d): %s" % (len(miss), miss[:10]))
         return 1
 
-    problems = ic1_check(SEG_CSV, SPACED_FR, fields=FR_FIELDS, seeds=SEEDS, worlds=WORLDS)
+    problems = ic1_check(SEG_CSV, SURFACE_FR, fields=MATCH_FIELDS, seeds=SEEDS,
+                         worlds=WORLDS, strength=STRENGTH)
     if problems:
         print("I-C1 BYTE-IDENTITY EMBED GATE FAILED (driver-plumbing bug or build drift):")
         for p in problems[:20]:
             print("  " + p)
         print("  (%d problems total)" % len(problems))
         return 1
-    print("I-C1 embed gate: PASS (legacy cells string-equal to the spaced artifact)")
+    print("I-C1 embed gate: PASS (legacy cells string-equal to the surface's strength-0 rows)")
     print("")
 
     rows = build_rows(rows_in)

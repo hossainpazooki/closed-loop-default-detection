@@ -31,3 +31,23 @@ The hypotheses, floors and reading rules are in the specification. The analysis
 script is public and states them in its docstring; the specification adds the
 decision record and the disclosure of what had been seen on already-spent seeds
 before the hypotheses were worded.
+
+## Segmented selection at strength 0 (Option C)
+
+| | |
+|---|---|
+| Registered | 2026-11-03, by the commit that adds this entry |
+| Specification | `2026-11-03-cldd-option-c-segmented-selection-design.md` |
+| SHA-256 | `bb01ebf82014ace404c634c5f5ae882e55789b6fa6e3ea1a11379236e6a8ad76` |
+| Judged by | `scripts/segment_stats.py` at the commit that adds this entry |
+| Run by | `scripts/run_segment_sweep.py` at the commit that adds this entry |
+| Seeds | `{1000 + 16i, i = 0..24}` at confounder strength 0: the v4 surface's strength-0 seeds, reused on purpose so the legacy cell must reproduce the surface's rows byte for byte; the policy cells have never run on them |
+| Runs | 400 loop runs: 16 policy cells, two worlds, 25 seeds, one strength |
+| State at registration | pilot gate passed on seed 1000 (round counts and timings read, no metric values); `artifacts/segment_frontier.csv` does not exist |
+| Text | held outside this repository; not released |
+
+Four confirmatory hypotheses (losing overlap in an observable costs calibration
+at severity 0, and moves the frontier; each in both worlds), one placebo
+contrast in the flat world, and a falsification statement: the overlap-wall
+explanation is stated as measured only if both frontier hypotheses are
+confirmed. The analysis script states them in its docstring.

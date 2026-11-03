@@ -21,6 +21,7 @@ _spec.loader.exec_module(rgs)
 
 def test_locked_grid():
     assert rgs.SEEDS == [1000 + 16 * i for i in range(25)]
+    assert rgs.STRENGTH == 0.0                      # ruling F8: confounder off
     assert rgs.N_SEGMENTS == 5
     assert rgs.DEPTHS == [0.0, 0.5, 1.0]
     assert rgs.ATTACK_FEATURES == [("aggregate_credit_utilization", "high"),
@@ -51,8 +52,10 @@ def test_placebo_is_flat_only():
 
 
 def test_schema_extends_the_spaced_schema():
-    assert rgs.SEG_FIELDS == rgs.POLICY_FIELDS + rgs.FR_FIELDS + rgs.EXTRA_FIELDS
+    assert rgs.SEG_FIELDS == (rgs.POLICY_FIELDS + rgs.STRENGTH_FIELDS + rgs.FR_FIELDS
+                              + rgs.EXTRA_FIELDS)
     assert len(set(rgs.SEG_FIELDS)) == len(rgs.SEG_FIELDS)
+    assert rgs.MATCH_FIELDS == ["unobserved_strength"] + rgs.FR_FIELDS
 
 
 def test_child_code_is_valid_python_for_every_cell():
@@ -60,11 +63,35 @@ def test_child_code_is_valid_python_for_every_cell():
         ast.parse(rgs.child_code(cell, seed=1000))
 
 
-def test_legacy_child_passes_no_generator_kwargs():
-    """The embed cell must take the pre-knob path exactly: kwargs stays None."""
+def test_legacy_child_passes_only_the_strength():
+    """The embed cell must take the v4 surface's strength-0 path exactly: the
+    strength knob and nothing else (no policy), so its rows can string-match
+    the surface's strength-0 rows."""
     legacy = next(c for c in rgs.policy_cells() if c["policy_id"] == rgs.LEGACY)
     code = rgs.child_code(legacy, seed=1000)
     assert "feature, end, depth = '', '', None" in code
+    assert 'kwargs = {"unobserved_strength": 0.0}' in code
+
+
+def test_every_child_runs_at_strength_zero():
+    for cell in rgs.policy_cells():
+        assert '"unobserved_strength": 0.0' in rgs.child_code(cell, seed=1000)
+
+
+def test_reference_rows_keep_only_the_strength_zero_surface(tmp_path):
+    """The v4 surface carries six strengths; only the strength-0 rows are the
+    I-C1 reference, and they come back in iteration order."""
+    ref = tmp_path / "surface.csv"
+    ref.write_text(
+        "unobserved_strength,seed,generator,iteration,x\n"
+        "0.0,1000,flat,1,b\n"
+        "0.7,1000,flat,0,z\n"
+        "0.0,1000,flat,0,a\n"
+        "0.0,1016,scm,0,c\n"
+    )
+    rows = rgs.reference_rows(ref)
+    assert set(rows) == {("flat", 1000), ("scm", 1016)}
+    assert [r["x"] for r in rows[("flat", 1000)]] == ["a", "b"]
 
 
 def test_every_policy_preserves_the_approval_rate():
@@ -83,5 +110,5 @@ def test_embed_reference_artifacts_are_git_tracked():
         capture_output=True, text=True, cwd=rgs.ROOT,
     ).stdout.splitlines()
     names = {Path(p).name for p in tracked}
-    missing = [n for n in (rgs.SPACED_FR.name, rgs.ENV_MANIFEST.name) if n not in names]
+    missing = [n for n in (rgs.SURFACE_FR.name, rgs.ENV_MANIFEST.name) if n not in names]
     assert not missing, f"sweep reads untracked artifacts: {missing}"

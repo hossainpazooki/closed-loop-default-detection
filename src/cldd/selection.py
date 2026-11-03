@@ -144,7 +144,16 @@ def segment_index(values, n_segments: int, knockout_end: str = "low") -> np.ndar
 
 
 def apply_segmented(prior_score, segment, rates) -> np.ndarray:
-    """Funding mask: within segment ``k`` fund the lowest ``rates[k]`` fraction."""
+    """Funding mask: within segment ``k`` fund the lowest ``rates[k]`` fraction.
+
+    The cutoff is the quantile of the segment's scores at ``rates[k]`` and the
+    comparison is inclusive, the same convention as the generators' single
+    global cutoff. On tied scores an inclusive cutoff can fund a segment a few
+    rows above its rate; the selection score is a continuous float, so ties
+    have not occurred in any committed run. The convention is shared with the
+    global cutoff on purpose: changing either side alone would break the
+    byte-identity between the legacy cell and the frozen artifacts.
+    """
     score = np.asarray(prior_score, dtype=float)
     seg = np.asarray(segment)
     approved = np.zeros(len(score), dtype=bool)

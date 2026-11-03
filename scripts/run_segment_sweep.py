@@ -1,13 +1,17 @@
 """CLDD Option C segmented-selection sweep (frontier leg, both worlds).
 
-Policy cells x worlds x 25 spaced seeds = 400 loop runs
-  -> artifacts/segment_frontier.csv  (leading policy columns + the
-     frontier_sweep_spaced.csv schema + control/diagnostic columns)
+Policy cells x worlds x 25 spaced seeds = 400 loop runs, every cell with the
+unobserved confounder switched off (unobserved_strength = 0.0, ruling F8: the
+overlap hypothesis is stated at strength 0, so it is tested there)
+  -> artifacts/segment_frontier.csv  (leading policy columns + unobserved_strength
+     + the frontier_sweep_spaced.csv schema + control/diagnostic columns)
 
 Cells:
   legacy                      the single global cutoff (policy None), both worlds.
-                              Re-runs the spaced configurations exactly, so it is
-                              the I-C1 byte-identity embed cell.
+                              Re-runs the v4 surface's strength-0 configurations
+                              exactly, so it is the I-C1 byte-identity embed cell:
+                              its rows must string-match the strength-0 rows of
+                              artifacts/surface_frontier.csv.
   attack features x depths    knockout of one end-quintile of a RISK-RELEVANT
                               observed feature, both worlds.
   placebo feature x depths    the same knockout on a feature with NO risk
@@ -28,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import importlib.util
 import json
 import platform
@@ -51,8 +56,10 @@ _rss = _load("run_surface_sweep")
 SEEDS = list(_rss.SEEDS)                      # the spaced set {1000 + 16i}
 WORLDS = tuple(_rss.WORLDS)                   # ("flat", "scm")
 FR_FIELDS = list(_rss.FR_FIELDS)
-SPACED_FR = _rss.SPACED_FR                    # frontier_sweep_spaced_v4env.csv
+SURFACE_FR = _rss.FR_OUT                      # surface_frontier.csv (I-C1 reference, strength-0 rows)
 ENV_MANIFEST = _rss.ENV_MANIFEST              # surface_env.json (read-only here)
+
+STRENGTH = 0.0                                # ruling F8: confounder off in every cell
 
 APPROVAL_RATE = 0.6                           # config.DEFAULT_APPROVAL_RATE
 N_SEGMENTS = 5
@@ -70,7 +77,9 @@ PILOT_DIR = ROOT / "artifacts" / "segment_pilot"
 POLICY_FIELDS = ["policy_id", "segment_feature", "knockout_end", "knockout_depth"]
 EXTRA_FIELDS = ["control_metric", "approval_rate", "propensity_auc", "ess_ratio",
                 "unfunded_below_floor", "diag_flagged"]
-SEG_FIELDS = POLICY_FIELDS + FR_FIELDS + EXTRA_FIELDS
+STRENGTH_FIELDS = ["unobserved_strength"]
+SEG_FIELDS = POLICY_FIELDS + STRENGTH_FIELDS + FR_FIELDS + EXTRA_FIELDS
+MATCH_FIELDS = STRENGTH_FIELDS + FR_FIELDS    # I-C1 compares these, string-equal
 
 PILOT_LOOP_BUDGET_S = 60.0
 
@@ -102,10 +111,10 @@ from cldd.loop import SelectiveLabelsLoop
 from cldd.selection import SegmentedSelection, knockout_rates
 
 feature, end, depth = {feature!r}, {end!r}, {depth!r}
-kwargs = None
+kwargs = {{"unobserved_strength": {strength}}}
 if depth is not None:
-    kwargs = {{"selection_policy": SegmentedSelection(
-        feature, knockout_rates(depth, {approval_rate}, {n_segments}), knockout_end=end)}}
+    kwargs["selection_policy"] = SegmentedSelection(
+        feature, knockout_rates(depth, {approval_rate}, {n_segments}), knockout_end=end)
 loop = SelectiveLabelsLoop(
     improve_mode="both", generator={generator!r}, seed={seed}, generator_kwargs=kwargs,
 )
@@ -118,6 +127,7 @@ for r in result.rounds:
         "segment_feature": feature,
         "knockout_end": end,
         "knockout_depth": "" if depth is None else depth,
+        "unobserved_strength": {strength},
         "seed": {seed},
         "generator": {generator!r},
         "iteration": r.iteration,
@@ -146,9 +156,22 @@ for r in result.rounds:
 def child_code(cell: dict, seed: int) -> str:
     return _SEG_CHILD.format(
         feature=cell["feature"], end=cell["end"], depth=cell["depth"],
-        approval_rate=APPROVAL_RATE, n_segments=N_SEGMENTS,
+        approval_rate=APPROVAL_RATE, n_segments=N_SEGMENTS, strength=STRENGTH,
         generator=cell["world"], seed=seed, policy_id=cell["policy_id"],
     )
+
+
+def reference_rows(path: Path = SURFACE_FR, strength: float = STRENGTH) -> dict:
+    """{(world, seed): surface rows at ``strength``, in iteration order}: the
+    I-C1 reference. Rows at every other strength are ignored."""
+    out: dict = {}
+    with path.open(newline="") as f:
+        for r in csv.DictReader(f):
+            if float(r["unobserved_strength"]) == strength:
+                out.setdefault((r["generator"], int(r["seed"])), []).append(r)
+    for rows in out.values():
+        rows.sort(key=lambda r: int(r["iteration"]))
+    return out
 
 
 def _key(row: dict) -> tuple:
@@ -219,7 +242,8 @@ def _cell(policy: str, world: str) -> dict:
 
 
 def run_pilot() -> int:
-    print("PILOT GATE (Option C) -- seed %d only" % SEEDS[0], flush=True)
+    print("PILOT GATE (Option C) -- seed %d only, strength %.1f" % (SEEDS[0], STRENGTH),
+          flush=True)
     seed = SEEDS[0]
     failures: list = []
     PILOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -245,7 +269,8 @@ def run_pilot() -> int:
     knock = SegmentedSelection(feature, knockout_rates(1.0, APPROVAL_RATE, N_SEGMENTS),
                                knockout_end=end)
     for world in WORLDS:
-        kw = dict(severity=0.4, seed=seed, n_applicants=1000, approval_rate=APPROVAL_RATE)
+        kw = dict(severity=0.4, seed=seed, n_applicants=1000, approval_rate=APPROVAL_RATE,
+                  unobserved_strength=STRENGTH)
         base = make_generator(world, **kw).generate_cohort()
         seg = make_generator(world, **kw, selection_policy=knock).generate_cohort()
         try:
@@ -276,15 +301,15 @@ def run_pilot() -> int:
                     f"> {PILOT_LOOP_BUDGET_S:.0f} s -- STOP, re-scope by spec revision"
                 )
 
-    # (a) I-C1 in miniature: legacy pilot rows == committed spaced rows.
+    # (a) I-C1 in miniature: legacy pilot rows == committed surface rows at strength 0.
     got = _rss._rows_by_key(pilot_csv, lambda r: (r["policy_id"], r["generator"]))
-    ref = _rss._rows_by_key(SPACED_FR, lambda r: (r["generator"], int(r["seed"])))
+    ref = reference_rows()
     for world in WORLDS:
         want = ref.get((world, seed), [])
         if not want:
             failures.append(f"I-C1 {world}: reference cell absent (gate cannot verify)")
             continue
-        failures += _rss._string_match(got.get((LEGACY, world), []), want, FR_FIELDS,
+        failures += _rss._string_match(got.get((LEGACY, world), []), want, MATCH_FIELDS,
                                        f"I-C1 legacy [{world}]")
 
     # (b2) non-vacuity at the loop level: round 0 moves between depth 0 and depth 1.

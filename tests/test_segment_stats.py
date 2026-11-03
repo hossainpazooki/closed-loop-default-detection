@@ -26,7 +26,8 @@ def _rows(policy, world, eces, frontiers, flagged=False, seeds=SEEDS8):
     out = []
     for seed, ece, frontier in zip(seeds, eces, frontiers):
         out.append({
-            "policy_id": policy, "generator": world, "seed": str(seed),
+            "policy_id": policy, "unobserved_strength": "0.0",
+            "generator": world, "seed": str(seed),
             "iteration": "0", "selection_severity": "0.0",
             "frontier_severity": "" if frontier is None else str(frontier),
             "passed": "True", "control_metric": str(ece),
@@ -155,6 +156,21 @@ def test_ic1_passes_on_equal_rows_and_fires_on_a_planted_mismatch(tmp_path):
     assert problems and "x" in problems[0]
 
 
+def test_ic1_reads_only_the_reference_rows_at_the_run_strength(tmp_path):
+    """The surface carries six strengths per (world, seed); a mismatching row at
+    another strength must not fire, and a matching one must not be found there."""
+    ref, got = tmp_path / "ref.csv", tmp_path / "got.csv"
+    _write(ref, "unobserved_strength,seed,generator,iteration,x",
+           ["0.7,1000,flat,0,0.9", "0.0,1000,flat,0,0.5"])
+    _write(got, "policy_id,unobserved_strength,seed,generator,iteration,x",
+           ["legacy,0.0,1000,flat,0,0.5"])
+    kw = dict(fields=["unobserved_strength", "seed", "generator", "iteration", "x"],
+              seeds=[1000], worlds=("flat",))
+    assert gs.ic1_check(got, ref, strength=0.0, **kw) == []
+    assert gs.ic1_check(got, ref, strength=0.7, **kw)          # the 0.9 row fires
+    assert "reference cell absent" in gs.ic1_check(got, ref, strength=0.2, **kw)[0]
+
+
 def test_ic1_ignores_policy_rows_and_fails_closed_on_an_absent_reference(tmp_path):
     ref, got = tmp_path / "ref.csv", tmp_path / "got.csv"
     _write(ref, "seed,generator,iteration,x", ["1000,flat,0,0.5"])
@@ -195,8 +211,9 @@ def test_main_writes_stats_to_the_configured_path(monkeypatch, tmp_path):
     _write(ref, ",".join(header), [",".join(r[h] for h in header) for r in legacy])
     out = tmp_path / "segment_stats.csv"
     monkeypatch.setattr(gs, "SEG_CSV", seg)
-    monkeypatch.setattr(gs, "SPACED_FR", ref)
-    monkeypatch.setattr(gs, "FR_FIELDS", ["seed", "generator", "iteration", "x"])
+    monkeypatch.setattr(gs, "SURFACE_FR", ref)
+    monkeypatch.setattr(gs, "MATCH_FIELDS",
+                        ["unobserved_strength", "seed", "generator", "iteration", "x"])
     monkeypatch.setattr(gs, "OUT_CSV", out)
     assert gs.main() == 0
     assert out.exists()

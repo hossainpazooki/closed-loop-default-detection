@@ -32,9 +32,12 @@ specification is held outside the repository):
   and emits each verdict word only while the data supports it; `replication-run-counts`
   has its row-drop non-vacuity test. Suite 331.
 - **Segmented selection** (`cldd.selection`, `selection_policy=` on both generators,
-  `scripts/run_segment_sweep.py`): built, byte-identical at the default, **not run**. Its
-  driver still targets the default confounder strength and will be revised to strength 0
-  before any run.
+  `scripts/run_segment_sweep.py`): built, byte-identical at the default, **pre-registered
+  by digest in `PREREGISTRATION.md`, not run**. Every cell runs with the confounder
+  switched off (`unobserved_strength=0.0`); the legacy cell's byte-identity reference is
+  the strength-0 rows of `artifacts/surface_frontier.csv`, and the pilot gate passed
+  against them on seed 1000. The within-segment cutoff shares the global cutoff's
+  inclusive-quantile convention, recorded in `cldd.selection`. Suite 334.
 
 v4 Option A — the `unobserved_strength` × severity surface (spec
 `2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2, in the history at `43926ce`):
