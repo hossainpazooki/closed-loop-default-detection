@@ -34,6 +34,8 @@ _SEED = 42
 
 @pytest.fixture(scope="module")
 def real() -> pd.DataFrame:
+    if DEFAULT_DATA_DIR is None:
+        pytest.skip("real dataset not configured (CLDD_DATA_DIR unset)")
     try:
         return load_real(DEFAULT_DATA_DIR, split="train")
     except FileNotFoundError:

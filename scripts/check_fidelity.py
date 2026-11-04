@@ -9,8 +9,8 @@ fails. Run from anywhere::
 
 Exit code 0 == gate passed, 1 == gate failed (or data not found).
 
-When ``--data-dir`` is omitted, the ``CLDD_DATA_DIR`` env var is honored as the
-default dataset location (via ``DEFAULT_DATA_DIR``).
+When ``--data-dir`` is omitted, the ``CLDD_DATA_DIR`` env var is the dataset location;
+with neither set the gate exits 1 naming the variable.
 """
 
 from __future__ import annotations
@@ -24,15 +24,15 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if _SRC.exists() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from cldd.fidelity import DEFAULT_DATA_DIR, run_fidelity_gate  # noqa: E402
+from cldd.fidelity import run_fidelity_gate  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Verify SCM *marginal* fidelity vs real data (univariate "
                     "marginals only; does not check the joint distribution).")
-    p.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR),
-                   help="real dataset directory (contains train.csv).")
+    p.add_argument("--data-dir", default=None,
+                   help="real dataset directory (contains train.csv); default: $CLDD_DATA_DIR.")
     p.add_argument("--split", default="train", help="real split to compare against.")
     p.add_argument("--n", type=int, default=12000,
                    help="synthetic cohort size (>=8000 recommended for stable quantiles).")

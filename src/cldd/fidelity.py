@@ -53,19 +53,14 @@ from .scm import StructuralBorrowerGenerator
 # Configuration
 # --------------------------------------------------------------------------- #
 
-#: Historical author-machine dataset location, kept only as a last-resort fallback
-#: so the maintainer's local ``check_fidelity`` run needs no configuration.
-_FALLBACK_DATA_DIR = Path(
-    "C:/Users/hossa/dev/intuit-techweek-hackathon/"
-    "intuit-techweek-nyc-hackathon-2026/dataset"
-)
-
-#: Default location of the real Intuit dataset. The dataset is **private and not
+#: Default location of the real Intuit dataset, read from the ``CLDD_DATA_DIR``
+#: environment variable; ``None`` when it is unset. The dataset is **private and not
 #: shipped with the package**, so the fidelity gate is runnable only where that
-#: data is available. Point the gate at your copy with the ``CLDD_DATA_DIR``
-#: environment variable (the portable knob) or by passing ``data_dir=`` explicitly;
-#: absent both, this falls back to the maintainer's historical path.
-DEFAULT_DATA_DIR = Path(os.environ.get("CLDD_DATA_DIR", _FALLBACK_DATA_DIR))
+#: data is available. ``CLDD_DATA_DIR`` is the only data-location knob; ``data_dir=``
+#: on the loaders overrides it per call.
+DEFAULT_DATA_DIR: Path | None = (
+    Path(os.environ["CLDD_DATA_DIR"]) if "CLDD_DATA_DIR" in os.environ else None
+)
 
 #: Continuous features compared on p1/p50/p99 (modeled in the SCM marginals).
 CONTINUOUS_FEATURES = (
@@ -246,15 +241,29 @@ class FidelityReport:
 # --------------------------------------------------------------------------- #
 
 
-def load_real(data_dir: str | Path = DEFAULT_DATA_DIR, split: str = "train") -> pd.DataFrame:
+def _resolve_data_dir(data_dir: str | Path | None) -> Path:
+    if data_dir is None:
+        data_dir = DEFAULT_DATA_DIR
+    if data_dir is None:
+        raise FileNotFoundError(
+            "real Intuit dataset location is not set. The dataset is private and is "
+            "not shipped with cldd; set the CLDD_DATA_DIR environment variable (or "
+            "pass data_dir=) to the directory containing train.csv."
+        )
+    return Path(data_dir)
+
+
+def load_real(data_dir: str | Path | None = None, split: str = "train") -> pd.DataFrame:
     """Load a split of the real Intuit dataset as a DataFrame.
 
     Parameters
     ----------
-    data_dir : path to the dataset directory (defaults to :data:`DEFAULT_DATA_DIR`).
+    data_dir : path to the dataset directory; ``None`` means :data:`DEFAULT_DATA_DIR`
+        (the ``CLDD_DATA_DIR`` environment variable), and if that is unset too a
+        ``FileNotFoundError`` names the variable.
     split : one of ``"train"``, ``"validation"``, ``"test"`` (file ``<split>.csv``).
     """
-    path = Path(data_dir) / f"{split}.csv"
+    path = _resolve_data_dir(data_dir) / f"{split}.csv"
     if not path.exists():
         raise FileNotFoundError(
             f"real Intuit dataset not found: {path}. The dataset is private and is "
@@ -411,7 +420,7 @@ def compute_fidelity(
 
 
 def run_fidelity_gate(
-    data_dir: str | Path = DEFAULT_DATA_DIR,
+    data_dir: str | Path | None = None,
     split: str = "train",
     n_applicants: int = 12000,
     seed: int = 42,
@@ -426,5 +435,5 @@ def run_fidelity_gate(
         n_applicants=n_applicants, seed=seed, generator=generator, **generator_kwargs
     )
     report = compute_fidelity(real, cohort, strict_categoricals=strict_categoricals)
-    report.data_dir = str(data_dir)
+    report.data_dir = str(data_dir if data_dir is not None else DEFAULT_DATA_DIR)
     return report
