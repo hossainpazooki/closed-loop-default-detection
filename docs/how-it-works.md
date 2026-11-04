@@ -47,7 +47,7 @@ columns are comparable, and both are pure-numpy with zero RNG.
 
 The two variants **disagree by design, and the disagreement is a result**: the literature prior
 assumes a 26.44% ROI where a 60-day daily-ACH loan returns 8.75%, and puts 55% of defaults at
-full recovery where this harness plants ~1%. See the README's *Pricing the frontier* section
+full recovery where this harness plants ~1%. See the *Pricing the frontier* section of [results.md](results.md)
 for the measured numbers and the four reading caveats — most importantly that `emp_h` rests on
 **planted, unfitted** default timing (a verified experiment, not a verified result) and that
 post-term "day-90" defaults are priced by a stated imputation, not measured truth.
@@ -89,7 +89,7 @@ frontier wall stands with the confounder switched off, and the counterfactual ga
 opposite the predicted direction — so the one-cause attribution is withdrawn, as measured.
 The wall does move at maximum strength, observed post-hoc: a hypothesis for a future
 pre-registration, not a confirmation. Every figure behind this paragraph is quoted and
-registered in the [README's v4 section](https://github.com/hossainpazooki/closed-loop-default-detection#the-cause-tested-by-intervention-v4)
+registered in the v4 section of [results.md](results.md)
 and recomputes via `scripts/surface_stats.py`, which fail-closes on missing cells and
 enforces a byte-identity embed gate before reporting anything.
 
@@ -141,8 +141,8 @@ diagnostics do not separate failing runs from passing ones:
 | SCM | 8 | 17 | 0.834 vs 0.834 | -0.05 (p = 0.82) |
 
 So the confounder does not build the wall, and at full strength it moves it. What builds
-the wall with the confounder off is untested by intervention. Every figure quoted in the
-README for this experiment is registered in the doc-number gate and recomputes via
+the wall with the confounder off is untested by intervention. Every figure quoted in
+`results.md` for this experiment is registered in the doc-number gate and recomputes via
 `scripts/strength_replication_stats.py`.
 
 
@@ -200,7 +200,7 @@ discriminates; the registered reading of the flag is a table, not a verdict.
 
 The analysis script's floor comparison was corrected after the data were seen: a one-step
 frontier difference stored as 0.6 − 0.4 is below 0.2 in IEEE arithmetic and failed a raw
-`>=`. The README section on this experiment carries the disclosure.
+`>=`. The `results.md` section on this experiment carries the disclosure.
 
 ## Why it is useful
 

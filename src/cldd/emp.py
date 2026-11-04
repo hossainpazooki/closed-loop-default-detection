@@ -18,7 +18,7 @@ of mean per-loan exposure** (exposure = ``requested_amount``), so the two
 columns are directly comparable. Both consume ``scores`` as a ranking only and
 are invariant to strictly monotone transforms.
 
-Reading caveats (documented in README + CSV column notes):
+Reading caveats (documented in docs/results.md + CSV column notes):
 
 * Planted default timing is **marginally spec-shaped but conditionally
   cosmetic** — independent of features/risk given default status — so harness
