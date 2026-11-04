@@ -12,7 +12,8 @@ appears in the doc. Both failure modes fail the gate:
 * the doc was rewritten so the registered literal is gone (the claim registry
   itself has drifted -- unevaluable, and unevaluable is a FAILURE, not a pass).
 
-Scope: README.md plus registered figures in docs/validation.md (living docs). ``docs/assessment.md``
+Scope: docs/results.md (every measured result), the README's BibTeX version literal, and
+registered figures in docs/validation.md (living docs). ``docs/assessment.md``
 is a **dated provenance snapshot** ("dated docs stay dated") -- their
 figures are frozen records of their own review moments and must never be
 "fixed", so gating them against artifacts would be wrong the first time an
@@ -20,7 +21,7 @@ artifact is legitimately superseded. CHANGELOG entries are dated release notes,
 same exclusion. If a figure is added to another living doc, register it here.
 
 Comparison discipline: literals are compared after whitespace normalization
-(the README hard-wraps mid-claim), and values are formatted at the DOC'S quoted
+(the results.md hard-wraps mid-claim), and values are formatted at the DOC'S quoted
 precision -- a gate stricter than what the doc actually says would only emit
 false alarms. Unicode in literals (minus signs, check marks) is preserved;
 stdout stays ASCII via backslash-escaping.
@@ -67,7 +68,7 @@ ARTIFACTS_READ = [
     "segment_frontier.csv",
 ]
 
-MINUS = "−"   # the README's minus sign
+MINUS = "−"   # the results.md's minus sign
 CHECK = "✓"
 CROSS = "✗"
 
@@ -87,11 +88,11 @@ def _feedback_stats_module():
 
 
 # --------------------------------------------------------------------------- #
-# Formatting helpers -- match the README's quoting conventions exactly
+# Formatting helpers -- match the results.md's quoting conventions exactly
 # --------------------------------------------------------------------------- #
 
 def signed(v: float, dp: int) -> str:
-    """+0.0017 / −0.0028 -- explicit sign, README's unicode minus."""
+    """+0.0017 / −0.0028 -- explicit sign, results.md's unicode minus."""
     r = round(v, dp)
     sign = MINUS if r < 0 else "+"
     return sign + ("%." + str(dp) + "f") % abs(r)
@@ -136,7 +137,7 @@ def _by_severity(rows: list[dict], value_col: str) -> dict[float, dict]:
 
 SEVERITY_GRID = (0.0, 0.2, 0.4, 0.6)
 
-# Doc-verb operationalizations: the README's qualitative language is
+# Doc-verb operationalizations: the results.md's qualitative language is
 # conditional on these re-derivations. A claim REFUSES its literals (raises,
 # gate goes red) when the recomputed data no longer supports the verb --
 # same pattern as claim_surface_verdicts' floor re-derivation.
@@ -153,7 +154,7 @@ NEGLIGIBLE_FRACTION = 0.5   # "negligible at full severity": |mean gap at sev 1.
 # --------------------------------------------------------------------------- #
 
 def claim_frontier_table_seed42() -> list[str]:
-    """README single-seed frontier table <- loop_frontier.csv / loop_frontier_scm.csv."""
+    """results.md single-seed frontier table <- loop_frontier.csv / loop_frontier_scm.csv."""
     flat = _by_severity(_rows("loop_frontier.csv"), "naive_declined_ece")
     scm = _by_severity(_rows("loop_frontier_scm.csv"), "naive_declined_ece")
 
@@ -189,7 +190,7 @@ def _strong_gaps(csv_name: str, severity: float) -> list[float]:
 
 
 def claim_counterfactual_headline() -> list[str]:
-    """README v1 headline <- seed_sweep_25.csv + seed_sweep_spaced.csv
+    """results.md v1 headline <- seed_sweep_25.csv + seed_sweep_spaced.csv
     (Wilcoxon recomputed in-process for both designs)."""
     rows = _rows("seed_sweep_25.csv")
     g04 = _strong_gaps("seed_sweep_25.csv", 0.4)
@@ -211,11 +212,11 @@ def claim_counterfactual_headline() -> list[str]:
 
     g10_mean = float(np.mean(g10))
     assert gap_mean > 0 and n_pos >= MAJORITY and p < ALPHA, (
-        "README 'cuts ... MAE' verb no longer supported (direction/majority/significance)")
+        "results.md 'cuts ... MAE' verb no longer supported (direction/majority/significance)")
     assert sp_pos >= MAJORITY and sp_p < ALPHA, (
-        "README independent-replication phrasing no longer significant on the spaced set")
+        "results.md independent-replication phrasing no longer significant on the spaced set")
     assert abs(g10_mean) < NEGLIGIBLE_FRACTION * gap_mean, (
-        "README 'collapses to a negligible' no longer holds at full severity")
+        "results.md 'collapses to a negligible' no longer holds at full severity")
 
     return [
         "strong-propagation counterfactual MAE from %.3f to %.3f (%s%.1f%%, "
@@ -228,7 +229,7 @@ def claim_counterfactual_headline() -> list[str]:
 
 
 def claim_frontier_distribution() -> list[str]:
-    """README v2 frontier-distribution table <- frontier_sweep.csv."""
+    """results.md v2 frontier-distribution table <- frontier_sweep.csv."""
     rows = _rows("frontier_sweep.csv")
     literals = []
     for generator, label in (("flat", "flat"), ("scm", "SCM")):
@@ -249,7 +250,7 @@ def claim_frontier_distribution() -> list[str]:
 
 
 def claim_emp_disagreement() -> list[str]:
-    """README v2 EMP table (SCM, naive, declined) <- loop_frontier_scm.csv."""
+    """results.md v2 EMP table (SCM, naive, declined) <- loop_frontier_scm.csv."""
     scm = _by_severity(_rows("loop_frontier_scm.csv"), "naive_declined_empc")
     empc = [float(scm[s]["naive_declined_empc"]) for s in SEVERITY_GRID]
     emp_h = [float(scm[s]["naive_declined_emp_h"]) for s in SEVERITY_GRID]
@@ -260,7 +261,7 @@ def claim_emp_disagreement() -> list[str]:
 
 
 def claim_exploration_price() -> list[str]:
-    """README exploration price tag <- exploration_frontier.csv (seed 42, 10%, sev 0.6)."""
+    """results.md exploration price tag <- exploration_frontier.csv (seed 42, 10%, sev 0.6)."""
     rows = [
         r for r in _rows("exploration_frontier.csv")
         if int(r["seed"]) == 42
@@ -272,7 +273,7 @@ def claim_exploration_price() -> list[str]:
     n = int(r["n_explored"])
     cost = float(r["exploration_cost"])
     defaults = int(r["explored_defaults"])
-    per_label = round(cost / n / 100.0) * 100  # README rounds to the nearest $100
+    per_label = round(cost / n / 100.0) * 100  # results.md rounds to the nearest $100
     return [
         "buys **%d labels for $%s** — about **$%s per label**, of which %d are realized defaults"
         % (n, format(round(cost), ","), format(int(per_label), ","), defaults),
@@ -280,7 +281,7 @@ def claim_exploration_price() -> list[str]:
 
 
 def claim_feedback_hypotheses() -> list[str]:
-    """README v3 hypothesis table + H4 + alarm + run count <- feedback_profit_sweep.csv,
+    """results.md v3 hypothesis table + H4 + alarm + run count <- feedback_profit_sweep.csv,
     recomputed through scripts/feedback_sweep_stats.py (the committed stats pipeline)."""
     fss = _feedback_stats_module()
     df = fss.load_full_csv()
@@ -292,7 +293,7 @@ def claim_feedback_hypotheses() -> list[str]:
         if r["metric"] == "hypothesis" and r["severity"] == 0.4
     }
     h1, h2, h3 = hyp["H1"], hyp["H2"], hyp["H3"]
-    # The README's verdict column must match the recomputed verdicts.
+    # The results.md's verdict column must match the recomputed verdicts.
     assert h1["confirmed"] is True, "H1 no longer confirms"
     assert h2["confirmed"] is False and h3["confirmed"] is False, "H2/H3 verdict drift"
 
@@ -313,7 +314,7 @@ def claim_feedback_hypotheses() -> list[str]:
     n_runs = len(df.drop_duplicates(["seed", "selection_severity", "exploration_rate", "arm"]))
     literals.append("= **%d runs**" % n_runs)
 
-    # H4 integrity identity: the README quotes the measured max error (2 sig
+    # H4 integrity identity: the results.md quotes the measured max error (2 sig
     # figs); the hard invariant is the spec tolerance, asserted here. (The
     # gate's first run caught the old "<=1e-10" bound being marginally false:
     # the true max error is 1.0000000567e-10.)
@@ -341,7 +342,7 @@ def claim_feedback_hypotheses() -> list[str]:
 
 
 def claim_spaced_replication() -> list[str]:
-    """README "Caveat, measured" block <- seed_sweep_spaced.csv / frontier_sweep_spaced.csv."""
+    """results.md "Caveat, measured" block <- seed_sweep_spaced.csv / frontier_sweep_spaced.csv."""
     s04 = _strong_gaps("seed_sweep_spaced.csv", 0.4)
     s10 = _strong_gaps("seed_sweep_spaced.csv", 1.0)
     assert len(s04) == 25 and len(s10) == 25, "expected 25 spaced seeds per severity"
@@ -349,9 +350,9 @@ def claim_spaced_replication() -> list[str]:
 
     s04_mean = float(np.mean(s04))
     assert s04_mean > 0 and sum(1 for g in s04 if g > 0) >= MAJORITY and p04 < ALPHA, (
-        "README 'the effect survives' verb no longer supported by the spaced design")
+        "results.md 'the effect survives' verb no longer supported by the spaced design")
     assert abs(float(np.mean(s10))) < NEGLIGIBLE_FRACTION * s04_mean, (
-        "README 'negligible in magnitude' at full severity no longer holds")
+        "results.md 'negligible in magnitude' at full severity no longer holds")
 
     literals = [
         "%s ± %.4f, positive on %d/25 seeds, Wilcoxon p = %s"
@@ -393,12 +394,12 @@ def claim_spaced_replication() -> list[str]:
     )
     assert len(orig_vals) == 25, "expected 25 original SCM seeds"
     assert parts["scm"][0] != orig_vals[len(orig_vals) // 2], (
-        "README 'does **not** replicate' verb: spaced and original SCM medians now agree")
+        "results.md 'does **not** replicate' verb: spaced and original SCM medians now agree")
     return literals
 
 
 def claim_package_version() -> list[str]:
-    """README version mentions <- pyproject.toml (regex, not tomllib: CI floor is 3.10)."""
+    """README BibTeX version <- pyproject.toml (regex, not tomllib: CI floor is 3.10)."""
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     m = re.search(r'^version = "([^"]+)"', text, re.MULTILINE)
     assert m, "no version in pyproject.toml"
@@ -408,28 +409,7 @@ def claim_package_version() -> list[str]:
     assert m_cff and m_cff.group(1).strip() == version, (
         f"CITATION.cff version {m_cff and m_cff.group(1)!r} != pyproject {version!r}"
     )
-    return [
-        "# the library (PyPI, v%s)" % version,
-        "`%s` **alpha** on [PyPI]" % version,
-        "version = {%s}," % version,
-    ]
-
-
-def claim_test_count() -> list[str]:
-    """README suite size <- live pytest collection (both -q output formats handled)."""
-    import subprocess
-    out = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-        capture_output=True, text=True, cwd=ROOT,
-    ).stdout
-    node_ids = [ln for ln in out.splitlines() if "::" in ln]
-    if node_ids:
-        n = len(node_ids)
-    else:  # pytest >= 9 -q prints per-file "path: count" lines instead
-        per_file = re.findall(r"^tests[/\\].*: (\d+)$", out, re.MULTILINE)
-        assert per_file, f"could not parse pytest collection output:\n{out[-500:]}"
-        n = sum(int(c) for c in per_file)
-    return ["`pytest` — %d tests, all synthetic" % n]
+    return ["version = {%s}," % version]
 
 
 def claim_surface_run_counts() -> list[str]:
@@ -461,8 +441,7 @@ def claim_pinned_environment() -> list[str]:
 
 def claim_suite_counts() -> list[str]:
     """docs/validation.md troubleshooting + pinned-marker sentence <- live
-    collection (same recompute idiom as claim_test_count; two extra pytest
-    collections per gate run, ~seconds, accepted)."""
+    collection (two pytest collections per gate run, ~seconds, accepted)."""
     import subprocess
 
     def collect(*args) -> int:
@@ -488,13 +467,13 @@ def claim_suite_counts() -> list[str]:
 
 
 def claim_surface_verdicts() -> list[str]:
-    """README "The cause, tested" (v4) <- surface_frontier.csv / surface_counterfactual.csv.
+    """results.md "The cause, tested" (v4) <- surface_frontier.csv / surface_counterfactual.csv.
 
     Recomputes the corner count, the strength-median profile, H-S1f's sign test
     (exact binomial, Holm x4), and the gap-direction medians. Also re-derives all
     four confirmatory floor checks and refuses to emit the "not confirmed" literal
     unless every one of them actually fails its floor -- the gate must not let the
-    README claim a falsification the data no longer supports.
+    results.md claim a falsification the data no longer supports.
     """
     import math
 
@@ -514,7 +493,7 @@ def claim_surface_verdicts() -> list[str]:
             med[(v, w)] = vals[12]
     low = {med[(v, w)] for v in strengths[:5] for w in ("flat", "scm")}
     assert len(low) == 1 and med[(1.0, "flat")] == med[(1.0, "scm")], \
-        "strength-median profile no longer uniform; README v4 text is stale"
+        "strength-median profile no longer uniform; results.md v4 text is stale"
     low_med, high_med = low.pop(), med[(1.0, "flat")]
 
     corner = sum(1 for s in seeds if frontier[(0.0, "flat", s)] == 0.4)
@@ -546,7 +525,7 @@ def claim_surface_verdicts() -> list[str]:
     medians = [sorted(d)[12] for d in (d1f, d1s, d2a, d2b)]
     floors = [0.2, 0.2, fl2a, fl2b]
     assert all(m < f for m, f in zip(medians, floors)), \
-        "a confirmatory hypothesis now clears its floor; the 'not confirmed' README claim is stale"
+        "a confirmatory hypothesis now clears its floor; the 'not confirmed' results.md claim is stale"
 
     return [
         "all four hypotheses were **not confirmed**",
@@ -586,7 +565,7 @@ def claim_replication_run_counts() -> list[str]:
 
 
 def claim_strength_replication() -> list[str]:
-    """README strength-1.0 replication <- strength_replication_frontier.csv.
+    """results.md strength-1.0 replication <- strength_replication_frontier.csv.
 
     Re-derives both families through scripts/strength_replication_stats.py (one
     implementation, not a second copy of the statistics). Every verdict word is
@@ -616,7 +595,7 @@ def claim_strength_replication() -> list[str]:
     def first_move(world: str) -> float:
         base = frontier[(world, 0.0)]
         moved = [v for v in rst.STRENGTHS if frontier[(world, v)] < base]
-        assert moved, f"{world}: the median frontier never moves; README text is stale"
+        assert moved, f"{world}: the median frontier never moves; results.md text is stale"
         return min(moved)
 
     flag = {r["world"]: r for r in rows if r["metric"] == "flag_at_failing_severity"}
@@ -666,7 +645,7 @@ def claim_segment_run_counts() -> list[str]:
 
 
 def claim_segment_verdicts() -> list[str]:
-    """README segmented selection <- segment_frontier.csv.
+    """results.md segmented selection <- segment_frontier.csv.
 
     Re-derives the Holm family, the placebo and the falsification statement
     through scripts/segment_stats.py (one implementation). Every verdict word is
@@ -711,18 +690,17 @@ def claim_segment_verdicts() -> list[str]:
 
 
 CLAIMS = [
-    ("frontier-table-seed42", "README.md", claim_frontier_table_seed42),
-    ("counterfactual-headline", "README.md", claim_counterfactual_headline),
-    ("frontier-distribution", "README.md", claim_frontier_distribution),
-    ("emp-disagreement", "README.md", claim_emp_disagreement),
-    ("exploration-price", "README.md", claim_exploration_price),
-    ("feedback-hypotheses", "README.md", claim_feedback_hypotheses),
-    ("spaced-replication", "README.md", claim_spaced_replication),
-    ("surface-verdicts", "README.md", claim_surface_verdicts),
-    ("strength-replication", "README.md", claim_strength_replication),
-    ("segment-verdicts", "README.md", claim_segment_verdicts),
+    ("frontier-table-seed42", "docs/results.md", claim_frontier_table_seed42),
+    ("counterfactual-headline", "docs/results.md", claim_counterfactual_headline),
+    ("frontier-distribution", "docs/results.md", claim_frontier_distribution),
+    ("emp-disagreement", "docs/results.md", claim_emp_disagreement),
+    ("exploration-price", "docs/results.md", claim_exploration_price),
+    ("feedback-hypotheses", "docs/results.md", claim_feedback_hypotheses),
+    ("spaced-replication", "docs/results.md", claim_spaced_replication),
+    ("surface-verdicts", "docs/results.md", claim_surface_verdicts),
+    ("strength-replication", "docs/results.md", claim_strength_replication),
+    ("segment-verdicts", "docs/results.md", claim_segment_verdicts),
     ("package-version", "README.md", claim_package_version),
-    ("test-count", "README.md", claim_test_count),
     ("surface-run-counts", "docs/validation.md", claim_surface_run_counts),
     ("replication-run-counts", "docs/validation.md", claim_replication_run_counts),
     ("segment-run-counts", "docs/validation.md", claim_segment_run_counts),

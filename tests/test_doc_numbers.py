@@ -25,12 +25,12 @@ cdn = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(cdn)
 
 
-def _readme_text() -> str:
-    return (cdn.ROOT / "README.md").read_text(encoding="utf-8")
+def _results_text() -> str:
+    return (cdn.ROOT / "docs" / "results.md").read_text(encoding="utf-8")
 
 
 def test_all_registered_claims_pass():
-    """The gate itself: every README figure recomputes from its artifact."""
+    """The gate itself: every results.md figure recomputes from its artifact."""
     results = cdn.check_claims()
     failures = [r for r in results if not r["ok"]]
     assert not failures, f"doc-number gate failed: {failures}"
@@ -40,9 +40,9 @@ def test_all_registered_claims_pass():
 
 def test_gate_fires_on_planted_value_mismatch():
     """Vacuity check: corrupt one quoted figure and the matching claim must fail."""
-    doctored = _readme_text().replace("positive on 24/25 seeds", "positive on 23/25 seeds")
-    assert doctored != _readme_text(), "planted mismatch did not apply"
-    results = {r["id"]: r for r in cdn.check_claims(doc_texts={"README.md": doctored})}
+    doctored = _results_text().replace("positive on 24/25 seeds", "positive on 23/25 seeds")
+    assert doctored != _results_text(), "planted mismatch did not apply"
+    results = {r["id"]: r for r in cdn.check_claims(doc_texts={"docs/results.md": doctored})}
     assert not results["counterfactual-headline"]["ok"]
     assert results["counterfactual-headline"]["missing"], "should report the missing literal"
     # Unrelated claims are untouched by the plant.
@@ -51,8 +51,9 @@ def test_gate_fires_on_planted_value_mismatch():
 
 def test_gate_fires_on_dropped_literal():
     """A doc rewrite that deletes a registered claim entirely must also fail."""
-    doctored = _readme_text().replace("Wilcoxon p = 1.5e-7", "Wilcoxon p = small")
-    results = {r["id"]: r for r in cdn.check_claims(doc_texts={"README.md": doctored})}
+    doctored = _results_text().replace("Wilcoxon p = 1.5e-7", "Wilcoxon p = small")
+    assert doctored != _results_text(), "planted drop did not apply"
+    results = {r["id"]: r for r in cdn.check_claims(doc_texts={"docs/results.md": doctored})}
     assert not results["counterfactual-headline"]["ok"]
 
 
@@ -63,7 +64,7 @@ def test_gate_fails_closed_on_missing_artifact(monkeypatch, tmp_path):
     results = cdn.check_claims()
     # Only the claims that read artifacts/*.csv through cdn.ARTIFACTS; the
     # feedback claim resolves its CSV through feedback_sweep_stats' own path,
-    # and package-version / test-count read pyproject / live collection.
+    # and package-version reads pyproject.
     reads_artifacts_dir = {
         "frontier-table-seed42", "counterfactual-headline",
         "frontier-distribution", "emp-disagreement", "exploration-price",
@@ -123,8 +124,6 @@ _ARTIFACT_BACKED = [
 #                        test_feedback_claim_fires_on_artifact_value_drift below.
 #   package-version:     reads pyproject/CITATION directly; internally
 #                        cross-checked (CITATION != pyproject already fails it).
-#   test-count:          live pytest collection; non-vacuity demonstrated in the
-#                        field (228->229 catch, 2026-08-17).
 #   surface-run-counts:  counts distinct RUN KEYS, quoting no measured value, so
 #                        it is value-insensitive by construction (_perturbed_rows
 #                        preserves key columns on purpose). Its matching
@@ -301,7 +300,7 @@ def test_mutation_harness_detects_a_data_blind_claim(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Verb-conditional claims: the README's qualitative language ("survives",
+# Verb-conditional claims: results.md's qualitative language ("survives",
 # "collapses to a negligible", "does not replicate") must be refused by the
 # claim when the recomputed data no longer supports the verb.
 # --------------------------------------------------------------------------- #

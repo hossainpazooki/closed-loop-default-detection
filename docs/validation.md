@@ -16,7 +16,7 @@ python scripts/check_fidelity.py --data-dir /path/to/dataset   # equivalent, exp
 # Reproduce the headline statistic from committed evidence
 python scripts/paired_significance.py   # recomputes from artifacts/seed_sweep_25.csv
 
-# Doc-number gate — every figure quoted in the README must recompute from a committed artifact
+# Doc-number gate — every registered figure in the docs must recompute from a committed artifact
 python scripts/check_doc_numbers.py     # exit 0 iff every registered claim matches; also runs in CI via pytest
 ```
 
@@ -70,7 +70,7 @@ unevaluable, not partial, on an incomplete matrix); and the **I-1 byte-identity 
 gate** (default-strength cells string-equal, field-for-field, to the committed
 recorded-environment re-baseline `*_v4env.csv`; fail-closed on absent cells on both
 legs, and `artifacts/surface_env.json` records the environment every baseline was built
-in). The four confirmatory verdicts behind the README's v4 section were additionally
+in). The four confirmatory verdicts behind the v4 section of `results.md` were additionally
 recomputed by an independent skeptic pass before the docs were updated. Reproduce:
 `python scripts/run_surface_sweep.py` (resumable), then `python scripts/surface_stats.py`.
 
@@ -104,7 +104,7 @@ legacy row string-equal, on `unobserved_strength` and every frontier column, to 
 surface's strength-0 rows, in iteration order; absent reference cells fail closed). The
 verdicts were recomputed from the raw CSV by an independent skeptic pass before the docs
 were updated; that pass is what found the floor comparison's floating-point defect, which is
-corrected and disclosed in the README. Reproduce: `python scripts/run_segment_sweep.py`
+corrected and disclosed in `results.md`. Reproduce: `python scripts/run_segment_sweep.py`
 (resumable), then `python scripts/segment_stats.py`.
 
 ## Building the docs
@@ -144,7 +144,7 @@ future model tier, not a current dependency.
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
   exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
   the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the full suite passes (340 tests).
+  numpy 2.4.6** the full suite passes (345 tests).
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
 - **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not

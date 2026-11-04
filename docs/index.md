@@ -6,7 +6,8 @@ frontier** — the highest selection severity at which calibration on the *decli
 subpopulation still holds.
 
 The [README](https://github.com/hossainpazooki/closed-loop-default-detection#readme)
-is the short, results-first tour; this site carries the full documentation. The
+is the short tour; the results are on [results.md](results.md) and this site carries the
+full documentation. The
 accompanying article — the independent results-and-methodology assessment — is
 [`docs/assessment.md`](https://github.com/hossainpazooki/closed-loop-default-detection/blob/master/docs/assessment.md).
 
@@ -16,6 +17,7 @@ accompanying article — the independent results-and-methodology assessment — 
 
 quickstart
 how-it-works
+results
 configuration
 validation
 api
