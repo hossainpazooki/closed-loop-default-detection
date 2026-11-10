@@ -82,7 +82,8 @@ result. v4 turns that reading into an intervention: `generator_kwargs` on the lo
 `unobserved_strength` on `run_counterfactual_eval` sweep the confounder's strength as an
 explicit axis over a 6-point grid in both worlds, against four confirmatory hypotheses
 pre-registered with Holm correction, effect floors, and a falsification statement written
-before the data (spec `2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2).
+before the data (spec `2026-07-29-cldd-v4-option-a-surface-design.md`, Rev 1.2; in
+history at `eb9397b`, Rev 1.2 at `c6a70c1`).
 
 The pre-registered attack fired. All four hypotheses came back not confirmed — the
 frontier wall stands with the confounder switched off, and the counterfactual gap moves

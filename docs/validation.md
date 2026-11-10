@@ -116,6 +116,18 @@ runs it in every CI test job, with non-vacuity tests (a one-byte mutation and a 
 fail it). Run: `python scripts/check_preregistration.py` → `PREREGISTRATION GATE: PASS
 (2 specifications, every digest matches)`.
 
+The gate covers those two texts only. Two earlier hypothesis families were pre-registered
+by a dated spec commit, not by digest, and the gate does not check them: the
+feedback-profit hypotheses H1–H3 (spec first committed in `b23dc01`, 2026-07-14; sweep
+artifact first committed in `5194349`, 2026-07-29) and the four v4 surface hypotheses
+(spec first committed in `eb9397b`, 2026-07-29; data first committed in `9a2bd89`,
+2026-08-18). Each spec's hypotheses section is unchanged in every commit that holds it.
+Both specs left the tree in `90708e5`; read them with
+`git show b23dc01:docs/superpowers/specs/2026-07-14-cldd-v3-design.md` and
+`git show eb9397b:docs/superpowers/specs/2026-07-29-cldd-v4-option-a-surface-design.md`.
+These are committer dates. Rev 1.2 of the v4 spec (`c6a70c1`) shares its data's timestamp
+and amends no hypothesis.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:
