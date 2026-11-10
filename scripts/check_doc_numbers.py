@@ -399,15 +399,34 @@ def claim_spaced_replication() -> list[str]:
 
 
 def claim_package_version() -> list[str]:
-    """README BibTeX version <- pyproject.toml (regex, not tomllib: CI floor is 3.10)."""
+    """README BibTeX version <- pyproject.toml (regex, not tomllib: CI floor is 3.10).
+
+    Also cross-checks every other version literal in the tree against pyproject:
+    CITATION.cff, the src/cldd/__init__.py fallback and docs/conf.py. Each is a
+    file-backed assertion (tests/test_doc_numbers.py plants a mismatch per file)."""
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     m = re.search(r'^version = "([^"]+)"', text, re.MULTILINE)
     assert m, "no version in pyproject.toml"
     version = m.group(1)
+    short = ".".join(version.split(".")[:2])
     cff = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
     m_cff = re.search(r"^version: (.+)$", cff, re.MULTILINE)
     assert m_cff and m_cff.group(1).strip() == version, (
         f"CITATION.cff version {m_cff and m_cff.group(1)!r} != pyproject {version!r}"
+    )
+    init = (ROOT / "src" / "cldd" / "__init__.py").read_text(encoding="utf-8")
+    m_init = re.search(r'^\s*__version__ = "([^"]+)"', init, re.MULTILINE)
+    assert m_init and m_init.group(1) == version, (
+        f"src/cldd/__init__.py fallback {m_init and m_init.group(1)!r} != pyproject {version!r}"
+    )
+    conf = (ROOT / "docs" / "conf.py").read_text(encoding="utf-8")
+    m_rel = re.search(r'^release = "([^"]+)"', conf, re.MULTILINE)
+    assert m_rel and m_rel.group(1) == version, (
+        f"docs/conf.py release {m_rel and m_rel.group(1)!r} != pyproject {version!r}"
+    )
+    m_ver = re.search(r'^version = "([^"]+)"', conf, re.MULTILINE)
+    assert m_ver and m_ver.group(1) == short, (
+        f"docs/conf.py version {m_ver and m_ver.group(1)!r} != pyproject short {short!r}"
     )
     return ["version = {%s}," % version]
 

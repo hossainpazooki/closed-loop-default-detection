@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 try:  # pyproject `version` is the single source of truth (read from installed metadata)
     __version__ = _pkg_version("closed-loop-default-detection")
 except PackageNotFoundError:  # running from a source tree with no install
-    __version__ = "0.2.0"
+    __version__ = "0.4.0"
 
 from .correctors import (
     CorrectionOutcome,

@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath("../src"))
 project = "closed-loop-default-detection"
 author = "Hossain Pazooki"
 copyright = "2026, Hossain Pazooki"
-release = "0.2.0"
-version = "0.2"
+release = "0.4.0"
+version = "0.4"
 
 extensions = [
     "sphinx.ext.autodoc",

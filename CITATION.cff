@@ -10,8 +10,8 @@ type: software
 authors:
   - family-names: Pazooki
     given-names: Hossain
-version: 0.3.0
-date-released: 2026-07-22
+version: 0.4.0
+date-released: 2026-11-10
 license: MIT
 repository-code: "https://github.com/hossainpazooki/closed-loop-default-detection"
 url: "https://github.com/hossainpazooki/closed-loop-default-detection"

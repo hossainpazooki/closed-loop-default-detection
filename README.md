@@ -162,7 +162,7 @@ Metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" read
   title   = {{closed-loop-default-detection}: measuring selective-labels default
              detection and the PD model's operating frontier},
   year    = {2026},
-  version = {0.3.0},
+  version = {0.4.0},
   license = {MIT},
   url     = {https://github.com/hossainpazooki/closed-loop-default-detection}
 }

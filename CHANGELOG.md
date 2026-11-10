@@ -5,7 +5,23 @@ recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/
 and the project uses [Semantic Versioning](https://semver.org/). Version `0.1.0` is the
 initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-default-detection/).
 
-## [Unreleased]
+## [0.4.0] — 2026-11-10 (alpha)
+
+**The wall at strength 0 is an overlap wall, and both pre-registrations are opened.**
+v0.4.0 packages everything committed since 0.3.0: the spaced-seed replication; the v4
+`unobserved_strength` × severity surface, whose four hypotheses came back not confirmed
+and withdrew the essay's one-cause claim as measured; the doc-number gate with a
+content-hash pin on every artifact; the strength-1.0 replication, pre-registered by
+digest and replicated on 25 fresh seeds; and the segmented-selection experiment,
+pre-registered by digest and run with the confounder off, which rebuilt the wall by
+removing overlap by hand. Both pre-registration texts are released under
+`preregistration/`, byte-identical to their digests and checked in CI. The README is
+stripped to essentials and the results live in `docs/results.md`, under the same gate.
+An author-machine fallback path no longer ships in `cldd.fidelity`; `CLDD_DATA_DIR` is
+the only data-location knob. The frozen baselines are untouched and no published verdict
+moves. Public API additions: `cldd.selection`, `selection_policy=` on both generators,
+`SelectiveLabelsLoop(generator_kwargs=...)`, `run_counterfactual_eval(unobserved_strength=...)`,
+all byte-exact at their defaults.
 
 Packaging and docs for this release:
 

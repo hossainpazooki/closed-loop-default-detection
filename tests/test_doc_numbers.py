@@ -122,8 +122,8 @@ _ARTIFACT_BACKED = [
 # Exempt from _rows mutation, with reasons:
 #   feedback-hypotheses: reads via scripts/feedback_sweep_stats.py -- covered by
 #                        test_feedback_claim_fires_on_artifact_value_drift below.
-#   package-version:     reads pyproject/CITATION directly; internally
-#                        cross-checked (CITATION != pyproject already fails it).
+#   package-version:     reads pyproject/CITATION/__init__/conf.py directly; its
+#                        non-vacuity is test_package_version_fires_on_a_planted_file_mismatch.
 #   surface-run-counts:  counts distinct RUN KEYS, quoting no measured value, so
 #                        it is value-insensitive by construction (_perturbed_rows
 #                        preserves key columns on purpose). Its matching
@@ -325,3 +325,52 @@ def test_counterfactual_headline_refuses_verbs_when_effect_flips(monkeypatch):
     monkeypatch.setattr(cdn, "_rows", _sign_flipped_rows(cdn._rows))
     with pytest.raises(AssertionError):
         cdn.claim_counterfactual_headline()
+
+
+# --------------------------------------------------------------------------- #
+# package-version reads files, not doc text, so its non-vacuity is shown on a
+# copied tree with cdn.ROOT monkeypatched (doc_texts cannot reach it).
+# --------------------------------------------------------------------------- #
+
+_VERSION_FILES = ["pyproject.toml", "CITATION.cff", "src/cldd/__init__.py", "docs/conf.py"]
+
+
+def _version_tree(tmp_path):
+    for rel in _VERSION_FILES:
+        dst = tmp_path / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text((cdn.ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path
+
+
+def _mutate(root, rel, old, new):
+    p = root / rel
+    text = p.read_text(encoding="utf-8")
+    assert text.count(old) == 1, (rel, old, text.count(old))
+    p.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def test_package_version_passes_on_an_unmutated_copy(tmp_path, monkeypatch):
+    monkeypatch.setattr(cdn, "ROOT", _version_tree(tmp_path))
+    assert cdn.claim_package_version() == ["version = {%s}," % _pyproject_version()]
+
+
+def _pyproject_version() -> str:
+    import re as _re
+    text = (cdn.ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    return _re.search(r'^version = "([^"]+)"', text, _re.MULTILINE).group(1)
+
+
+@pytest.mark.parametrize("rel,old_fmt,new,named", [
+    ("CITATION.cff", "version: {v}", "version: 9.9.9", "CITATION.cff"),
+    ("src/cldd/__init__.py", '__version__ = "{v}"', '__version__ = "9.9.9"', "__init__.py"),
+    ("docs/conf.py", 'release = "{v}"', 'release = "9.9.9"', "conf.py"),
+    ("docs/conf.py", 'version = "{mm}"', 'version = "9.9"', "conf.py"),
+])
+def test_package_version_fires_on_a_planted_file_mismatch(tmp_path, monkeypatch, rel, old_fmt, new, named):
+    v = _pyproject_version()
+    root = _version_tree(tmp_path)
+    _mutate(root, rel, old_fmt.format(v=v, mm=".".join(v.split(".")[:2])), new)
+    monkeypatch.setattr(cdn, "ROOT", root)
+    with pytest.raises(AssertionError, match=named):
+        cdn.claim_package_version()
