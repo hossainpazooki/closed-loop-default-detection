@@ -98,7 +98,7 @@ enforces a byte-identity embed gate before reporting anything.
 The v4 surface showed the frontier moving only at full confounder strength, and that was
 read off the surface after the data was in. It was therefore re-run as its own experiment,
 on seeds no committed artifact had consumed, and pre-registered by digest (see
-`PREREGISTRATION.md`; the specification is held outside the repository). The driver is
+`PREREGISTRATION.md`; the text is released under `preregistration/`). The driver is
 the v4 surface child
 with one inserted block, the four overlap-diagnostic columns the loop already computes.
 

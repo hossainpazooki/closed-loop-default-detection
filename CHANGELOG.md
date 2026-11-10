@@ -7,8 +7,21 @@ initial **alpha**, published to [PyPI](https://pypi.org/project/closed-loop-defa
 
 ## [Unreleased]
 
+Packaging and docs for this release:
+
+- **Both pre-registration texts are released** under `preregistration/`, byte-identical to
+  the digests in `PREREGISTRATION.md`; `scripts/check_preregistration.py` recomputes every
+  digest and `tests/test_preregistration.py` runs it in every CI test job.
+- **README stripped to essentials.** The seven results sections moved verbatim to
+  `docs/results.md` with their gate claims (`test-count` retired; `suite-counts` on
+  `validation.md` already recomputes it). Where the entries below say "the README", the
+  text now lives there.
+- **No author-machine path ships in the package.** `cldd.fidelity` no longer falls back to a
+  path on the author's machine; `CLDD_DATA_DIR` is the only data-location knob, and
+  `tests/test_fidelity_default_dir.py` builds the sdist and wheel and greps them.
+
 Strength-1.0 replication (pre-registered by digest in `PREREGISTRATION.md`; the
-specification is held outside the repository):
+text is released in this version under `preregistration/`):
 
 - **The post-hoc strength-1.0 observation was re-run as a test and replicated in both
   worlds**, on 25 seeds no committed artifact had consumed (300 loop runs,
@@ -18,7 +31,7 @@ specification is held outside the repository):
   the SCM with no margin. Verdicts recomputed from the raw CSV by an independent skeptic
   before any doc was touched.
 - **Pre-registration by digest.** The specification's SHA-256 was committed before the
-  first fresh seed ran. Its text is not released.
+  first fresh seed ran. Its text is released in this version, byte-identical to the digest, checked in CI.
 - **Design specifications moved out of the repository.** `docs/superpowers/specs/` is
   removed from the tip. The v2, v3 and v4 specifications remain in the history; the v4
   pre-registration is at

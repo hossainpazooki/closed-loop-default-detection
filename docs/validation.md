@@ -107,6 +107,15 @@ were updated; that pass is what found the floor comparison's floating-point defe
 corrected and disclosed in `results.md`. Reproduce: `python scripts/run_segment_sweep.py`
 (resumable), then `python scripts/segment_stats.py`.
 
+## The pre-registration gate
+
+Both pre-registered specifications are released under `preregistration/`, byte-identical
+(over LF-normalised bytes) to the digests in `PREREGISTRATION.md`.
+`scripts/check_preregistration.py` recomputes every digest and `tests/test_preregistration.py`
+runs it in every CI test job, with non-vacuity tests (a one-byte mutation and a missing text both
+fail it). Run: `python scripts/check_preregistration.py` → `PREREGISTRATION GATE: PASS
+(2 specifications, every digest matches)`.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:
@@ -144,7 +153,7 @@ future model tier, not a current dependency.
 - **`pytest` shows a few float-mismatch failures (byte-identity baseline, seed-robustness, or
   exploration thresholds).** You are on a different scikit-learn/numpy than the pins. Install
   the pinned versions (`pip install -r requirements-dev.txt`); under **scikit-learn 1.9.0 /
-  numpy 2.4.6** the full suite passes (345 tests).
+  numpy 2.4.6** the full suite passes (350 tests).
 - **`ModuleNotFoundError: No module named 'cldd'` under `pytest`.** Install the package
   (`pip install -e ".[dev]"`); tests import `cldd` as an installed package.
 - **`check_fidelity.py` exits 1 with "data not found".** The real dataset is private and not

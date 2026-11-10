@@ -113,8 +113,8 @@ it was re-run as a test: 300 loop runs over the same six strengths, on 25 seeds 
 artifact had consumed (`artifacts/strength_replication_frontier.csv`). It was **pre-registered
 by digest**: the specification's SHA-256 was committed in
 [`PREREGISTRATION.md`](https://github.com/hossainpazooki/closed-loop-default-detection/blob/master/PREREGISTRATION.md) before the first fresh seed ran. The
-specification itself is held outside this repository, so the digest fixes the document
-and its date and does not yet let a reader check its text. The hypotheses, floors and
+specification text is released under `preregistration/`; a test recomputes its digest from
+the released file, so a reader can check it is the document the digest fixed. The hypotheses, floors and
 reading rules it registers are stated in full in the analysis script's docstring.
 
 The observation replicated in **2 of 2** worlds on 25 fresh seeds.
