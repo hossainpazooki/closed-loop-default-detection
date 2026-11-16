@@ -128,6 +128,18 @@ Both specs left the tree in `90708e5`; read them with
 These are committer dates. Rev 1.2 of the v4 spec (`c6a70c1`) shares its data's timestamp
 and amends no hypothesis.
 
+The v3 spec was amended twice on 2026-07-19, the day its results were first committed.
+Rev 2.1 (`9996832`) moved the imputation basis that prices `book_profit`, the quantity
+H1–H3 compare, from the funded rows to the full cohort. It followed the pilot gate, which
+as committed in `26bdde9` checks only the H4 identity and computes no H1–H3 statistic.
+Rev 2.2, committed with the results in `f2f1123`, raised the precision of `book_profit`
+and `explored_profit` in the sweep CSV from four to ten decimal places. It followed the
+first full sweep, and the stats script computes, writes and prints the H1–H3 results even
+when the H4 check fails. Neither amendment records whether H1–H3 results were seen before
+it was made. Each amendment is the stated resolution of an H4 failure, and each states
+that the tolerance was not loosened. `f2f1123` also added the v3 results to the README
+ten days before the sweep artifact was first committed.
+
 ## Building the docs
 
 The Sphinx API reference builds in the same strict mode Read the Docs uses:
