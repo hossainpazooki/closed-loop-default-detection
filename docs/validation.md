@@ -136,7 +136,11 @@ Rev 2.2, committed with the results in `f2f1123`, raised the precision of `book_
 and `explored_profit` in the sweep CSV from four to ten decimal places. It followed the
 first full sweep, and the stats script computes, writes and prints the H1–H3 results even
 when the H4 check fails. Neither amendment records whether H1–H3 results were seen before
-it was made. Each amendment is the stated resolution of an H4 failure, and each states
+it was made. The firing note committed in `f2f1123`
+(`git show f2f1123:docs/superpowers/specs/2026-07-19-wap-firing-evidence.md`) records
+both gates as "seen red": the pilot gate on the pricing basis that Rev 2.1 moved, and the
+full-matrix gate on the four-decimal rounding that Rev 2.2 replaced.
+Each amendment is the stated resolution of an H4 failure, and each states
 that the tolerance was not loosened. `f2f1123` also added the v3 results to the README
 ten days before the sweep artifact was first committed.
 
